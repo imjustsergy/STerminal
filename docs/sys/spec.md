@@ -508,6 +508,31 @@ financieros, enlaces a reports).
   `BTC NEWS` devuelve `200` con `items: []`.
 - **Dependencias:** ninguna nueva — `EquityProvider.get_news` ya existía desde feat-2.
 
+### feat-13 — Búsqueda de símbolos con autocompletado
+
+Segunda iteración del bucle post-MVP (score tras feat-12: 6/10). Base para futuras
+dependencias/correlaciones entre símbolos — hace falta poder encontrarlos primero.
+
+- **`GET /search?q=...`** (`backend/app/search_router.py`): router aparte de
+  `command_router.py` — no es un `CommandType` del lenguaje de comandos, se llama en
+  cada tecleo. Delega a `Registry.search` (feat-3), capado a 8 resultados. Query
+  vacía/solo espacios → `[]` sin tocar los providers.
+- **`CommandBar.svelte`**: dropdown de sugerencias con debounce de 250ms, solo mientras
+  el valor no contiene un espacio (antes de que el usuario teclee una función como
+  `GP`/`NEWS`). Un `searchToken` incremental descarta respuestas obsoletas si el
+  usuario sigue escribiendo antes de que vuelva un fetch anterior.
+- **Navegación por teclado dual:** ↑/↓ controlan el dropdown de sugerencias cuando está
+  abierto (en vez del historial de comandos, feat-8); Enter con una sugerencia
+  resaltada la selecciona sin ejecutar el comando; Escape cierra el dropdown sin borrar
+  el valor. Con el dropdown cerrado, ↑/↓/Enter/Escape vuelven a su comportamiento de
+  feat-8 (historial) sin cambios.
+- **`searchSymbols` (`lib/api.ts`) nunca lanza** — a diferencia de `postCommand`, un
+  fallo de red o del backend en la búsqueda no debe romper la barra de comando (es una
+  mejora, no una función crítica); devuelve `[]` en cualquier error.
+- Verificado en vivo: `GET /search?q=app` agrega resultados reales de equity y crypto
+  (yfinance + CoinGecko) en una sola lista.
+- **Dependencias:** ninguna nueva.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)

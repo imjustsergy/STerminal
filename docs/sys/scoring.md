@@ -37,3 +37,29 @@
 siguiente feature, es la base para "dependencias de entrada/salida" y "correlaciones" —
 necesitas encontrar símbolos relacionados antes de poder mostrarlos), luego datos
 financieros y correlaciones, luego reports.
+
+### Tras feat-13 (búsqueda de símbolos con autocompletado) — 2026-07-08
+
+**Score: 7/10**
+
+- **Funcionalidad (7/10):** ya se puede encontrar un símbolo sin saber el ticker exacto
+  de memoria (`GET /search` agrega equity+crypto+fx, dropdown en vivo). Sigue
+  faltando: dependencias de entrada/salida entre símbolos, correlaciones, datos
+  financieros (ratios, balance, income statement), enlaces a reports. La búsqueda es
+  la base que faltaba para las dos primeras — ahora sí hay por dónde empezarlas.
+- **UX (8/10):** salto real respecto a feat-12 — escribir 2-3 letras ya sugiere
+  símbolos reales con nombre y clase de activo, navegable por teclado sin salir del
+  flujo "todo por teclado" (spec.md sección 1). El historial de comandos (feat-8)
+  convive sin conflicto: ↑/↓ se reparten entre dropdown e historial según cuál esté
+  activo.
+- **Calidad de datos (7/10):** sin cambios respecto a feat-12 — mismos providers,
+  mismas limitaciones ya documentadas.
+- **Robustez (8/10):** `searchSymbols` nunca rompe la barra de comando ante un fallo de
+  red/backend (degrada a "sin sugerencias", no a un error visible) — mismo espíritu
+  defensivo que el resto del proyecto (spec.md sección 8). 63 tests frontend + 190
+  backend, verificado en vivo contra las APIs reales antes de mergear.
+
+**Qué falta para subir el score:** datos financieros básicos (ratios, la pieza que más
+falta para sentir el producto "completo" como terminal financiero) y/o dependencias de
+entrada/salida entre símbolos — evaluar cuál aporta más UX real en la siguiente
+iteración.
