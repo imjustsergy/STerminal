@@ -8,7 +8,7 @@ el mapeo símbolo→provider como que la caché evita reinvocarlo dentro del TTL
 from __future__ import annotations
 
 from app.cache import TTLCache
-from app.models import Candle, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
 from app.providers.base import Provider
 from app.registry import (
     HISTORY_DAILY_TTL_SECONDS,
@@ -39,6 +39,7 @@ class FakeProvider:
         self.history_calls: list[tuple[str, str]] = []
         self.search_calls: list[str] = []
         self.news_calls: list[str] = []
+        self.financials_calls: list[str] = []
 
     def get_quote(self, symbol: str) -> Quote:
         self.quote_calls.append(symbol)
@@ -78,6 +79,21 @@ class FakeProvider:
                 published_at="2026-07-07T00:00:00Z",
             )
         ]
+
+    def get_financials(self, symbol: str) -> Financials:
+        self.financials_calls.append(symbol)
+        return Financials(
+            symbol=symbol,
+            market_cap=1.0,
+            pe_ratio=1.0,
+            eps=1.0,
+            dividend_yield=1.0,
+            week52_high=1.0,
+            week52_low=1.0,
+            beta=1.0,
+            sector=self.asset_class,
+            industry=self.asset_class,
+        )
 
 
 def _make_registry(clock: _FakeClock | None = None) -> tuple[Registry, FakeProvider, FakeProvider, FakeProvider]:
@@ -298,6 +314,53 @@ def test_get_news_respects_asset_class_hint() -> None:
     registry.get_news("BTC", asset_class="equity")
     assert equity.news_calls == ["BTC"]
     assert crypto.news_calls == []
+
+
+# --- get_financials (feat-14) ---
+
+
+def test_get_financials_routes_to_correct_provider() -> None:
+    registry, equity, crypto, _ = _make_registry()
+    registry.get_financials("AAPL")
+    assert equity.financials_calls == ["AAPL"]
+    assert crypto.financials_calls == []
+
+
+def test_get_financials_translates_crypto_symbol() -> None:
+    registry, _, crypto, _ = _make_registry()
+    registry.get_financials("BTC")
+    assert crypto.financials_calls == ["bitcoin"]
+
+
+def test_get_financials_returns_provider_data() -> None:
+    registry, _, _, _ = _make_registry()
+    financials = registry.get_financials("AAPL")
+    assert financials.symbol == "AAPL"
+    assert financials.market_cap == 1.0
+
+
+def test_get_financials_is_served_from_cache_within_ttl() -> None:
+    clock = _FakeClock()
+    registry, equity, _, _ = _make_registry(clock)
+    registry.get_financials("AAPL")
+    registry.get_financials("AAPL")
+    assert equity.financials_calls == ["AAPL"]
+
+
+def test_get_financials_refetches_after_ttl_expires() -> None:
+    clock = _FakeClock()
+    registry, equity, _, _ = _make_registry(clock)
+    registry.get_financials("AAPL")
+    clock.advance(HISTORY_DAILY_TTL_SECONDS + 1)
+    registry.get_financials("AAPL")
+    assert equity.financials_calls == ["AAPL", "AAPL"]
+
+
+def test_get_financials_respects_asset_class_hint() -> None:
+    registry, equity, crypto, _ = _make_registry()
+    registry.get_financials("BTC", asset_class="equity")
+    assert equity.financials_calls == ["BTC"]
+    assert crypto.financials_calls == []
 
 
 # --- Desambiguación con hint también en get_quote/get_history ---

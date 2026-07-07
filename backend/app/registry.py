@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import Literal
 
 from app.cache import TTLCache
-from app.models import Candle, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
 from app.providers._util import normalize_resolution
 from app.providers.base import Provider
 
@@ -185,6 +185,24 @@ class Registry:
         news = self._provider_for(resolved_class).get_news(internal_symbol)
         self._cache.set(cache_key, news, HISTORY_DAILY_TTL_SECONDS)
         return news
+
+    def get_financials(
+        self, symbol: str, asset_class: AssetClass | None = None
+    ) -> Financials:
+        """Métricas financieras de `symbol` (feat-14). Solo `EquityProvider` devuelve
+        datos reales — crypto/fx devuelven un `Financials` con todos los campos
+        opcionales a `None`, de forma documentada, no un error. Mismo TTL que
+        `get_news`: los fundamentales cambian con baja frecuencia."""
+        resolved_class, internal_symbol = self.resolve(symbol, asset_class)
+        cache_key = ("financials", resolved_class, internal_symbol)
+
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        financials = self._provider_for(resolved_class).get_financials(internal_symbol)
+        self._cache.set(cache_key, financials, HISTORY_DAILY_TTL_SECONDS)
+        return financials
 
     def search(self, query: str) -> list[SymbolMatch]:
         """Agrega resultados de búsqueda de los tres providers (equity, crypto, fx).
