@@ -21,6 +21,10 @@
     feat-1. Ver
     [`docs/sys/features/feat-2-providers-base.md`](features/feat-2-providers-base.md)
     y [`docs/plans/plan-2-providers-base.md`](../plans/plan-2-providers-base.md).
+  - feat-3 — Registry (`registry.py`, enruta símbolo→provider y desambigua clases de
+    activo) + caché TTL en memoria (`cache.py`). Ver
+    [`docs/sys/features/feat-3-registry-cache.md`](features/feat-3-registry-cache.md)
+    y [`docs/plans/plan-3-registry-cache.md`](../plans/plan-3-registry-cache.md).
 - **Fecha:** 2026-07-07
 - **Stack elegida:** FastAPI (Python) + frontend Svelte + TradingView lightweight-charts + SQLite.
 - **Diseño visual/UX (definitivo):** ver [`init-specs/DESIGN.md`](init-specs/DESIGN.md) —
@@ -179,6 +183,52 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
   `FxProvider` mockean el transporte con `httpx.MockTransport`, `EquityProvider` usa
   factories inyectables (`ticker_factory`, `search_factory`) porque `yfinance` no
   expone un cliente HTTP interceptable de forma estable entre versiones.
+
+### Registry y caché implementados (desde feat-3)
+
+- **`Registry`** (`backend/app/registry.py`): recibe los tres providers por inyección de
+  dependencia (constructor `Registry(equity_provider, crypto_provider, fx_provider,
+  cache=None)`, acepta reales o fakes) y expone `get_quote(symbol, asset_class=None)`,
+  `get_history(symbol, resolution="1D", asset_class=None)`, `search(query)`.
+- **Detección de clase de activo (heurística por defecto, sin hint), en este orden:**
+  1. Símbolo de 6 letras cuyos 3 primeros y 3 últimos caracteres están en una tabla de
+     códigos ISO 4217 conocidos → `fx`.
+  2. Símbolo en una tabla de alias cripto conocidos (`BTC`, `ETH`, `USDT`, `BNB`, `SOL`,
+     `XRP`, `ADA`, `DOGE`, `TON`, `DOT`) → `crypto`.
+  3. Cualquier otro caso → `equity` (fallback).
+  Esto resuelve el choque `BTC` de la sección 4 de forma determinista: por defecto va a
+  `CryptoProvider`.
+- **Desambiguación explícita:** `get_quote`/`get_history` aceptan `asset_class:
+  Literal["equity", "crypto", "fx"] | None = None`; si se pasa, salta la heurística y
+  fuerza esa clase (ej. `asset_class="equity"` para tratar `"BTC"` como ticker
+  bursátil). Un valor no reconocido lanza `UnknownSymbolError`. Es el mecanismo que una
+  capa futura (parser/router, UI de "¿acción o cripto?") podrá usar; esta feature no
+  construye esa UI.
+- **Traducción símbolo de usuario → formato interno del provider:** equity y fx se pasan
+  en mayúsculas tal cual; crypto se traduce al id de CoinGecko vía la tabla de alias
+  (`"BTC"` → `"bitcoin"`) o, si no está en la tabla, se pasa en minúsculas tal cual
+  (soporta ids de CoinGecko ya resueltos vía `search()`, ej. `"the-open-network"`).
+  Limitación conocida y aceptada: tickers equity con guion (ej. `"BRK-B"`) no chocan con
+  ids de CoinGecko en minúsculas-con-guion porque los tickers de Yahoo son siempre
+  mayúsculas — sin ambigüedad real, documentado por completitud.
+- **`search(query)`:** agrega `list[SymbolMatch]` de los tres providers en orden
+  `equity, crypto, fx`, sin deduplicar ni rankear, y sin caché (operación interactiva de
+  baja frecuencia).
+- **`cache.py` — `TTLCache`:** caché genérica en memoria, no conoce símbolos ni
+  providers (`get(key)`/`set(key, value, ttl_seconds)`/`invalidate(key)`/`clear()`,
+  claves hashables arbitrarias), con reloj inyectable (`time.monotonic` por defecto)
+  para controlar expiración en tests sin `sleep()` real. Solo in-memory, sin persistir
+  entre reinicios del proceso.
+- **TTL realmente implementados** (el `Registry` construye las claves de caché
+  `("quote", asset_class, symbol_interno)` y `("history", asset_class, symbol_interno,
+  resolution)`):
+  - `get_quote` → 15 s siempre.
+  - `get_history`: los providers solo exponen las resoluciones `1D`/`1W`/`1M`/`1Y`,
+    ninguna verdaderamente intradía todavía; como aproximación, `"1D"` usa el TTL de
+    histórico intradía (60 s) y `"1W"`/`"1M"`/`"1Y"` usan el de histórico diario (300 s).
+    Se revisita si una feature futura añade una resolución intradía real.
+  - `search` → sin caché (no definida en la sección 3).
+- **Dependencias:** ninguna nueva — solo librería estándar (`time`).
 
 ---
 
