@@ -10,9 +10,12 @@
 > datos de APIs gratuitas, navegación por línea de comandos con teclado, y cartera real
 > por entrada manual/CSV con P&L en vivo.
 
-- **Estado:** diseño aprobado, pendiente de plan de implementación (MVP).
-- **Features implementadas:** ninguna todavía — este documento se actualizará tras el
-  primer ciclo de feature completado (`/feature:close`).
+- **Estado:** en implementación (MVP).
+- **Features implementadas:**
+  - feat-1 — Esqueleto backend: FastAPI + SQLite (esquema `positions`/`watchlist`/
+    `settings`) + interfaz `Provider` (`Protocol`). Ver
+    [`docs/sys/features/feat-1-backend-skeleton.md`](features/feat-1-backend-skeleton.md)
+    y [`docs/plans/plan-1-backend-skeleton.md`](../plans/plan-1-backend-skeleton.md).
 - **Fecha:** 2026-07-07
 - **Stack elegida:** FastAPI (Python) + frontend Svelte + TradingView lightweight-charts + SQLite.
 - **Diseño visual/UX (definitivo):** ver [`init-specs/DESIGN.md`](init-specs/DESIGN.md) —
@@ -102,6 +105,48 @@ class Provider(Protocol):
 ```
 
 TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, histórico diario ~5 min.
+
+### Estructura del proyecto backend e implementación (desde feat-1)
+
+- **Paquete:** `backend/` en la raíz del repo, src-layout con el código en
+  `backend/app/` y tests en `backend/tests/`:
+
+  ```
+  backend/
+    pyproject.toml
+    app/
+      __init__.py
+      main.py          # FastAPI app + endpoint de health-check
+      db.py             # conexión SQLite + init_db()
+      models.py         # Quote, Candle, SymbolMatch, NewsItem
+      providers/
+        __init__.py
+        base.py         # Protocol Provider
+    tests/
+      __init__.py
+      test_app.py
+      test_db.py
+      test_provider_protocol.py
+  ```
+
+  Se usa src-layout (en vez de paquete plano en la raíz) para dejar sitio a un futuro
+  `frontend/` en la raíz sin mezclar código Python y JS/TS en el mismo nivel.
+- **Gestor de dependencias:** `pip` + `venv` estándar, con `backend/pyproject.toml`
+  (build backend `setuptools`) como fuente única de metadatos y dependencias runtime
+  (`fastapi`, `uvicorn`) y de test (`pytest`, `httpx`). Elegido por cero fricción y cero
+  tooling externo adicional en la Raspberry Pi (nada de `poetry`/`uv`).
+  Entorno virtual local en `backend/.venv`, ignorado por git.
+- **SQLite:** módulo `sqlite3` de la librería estándar, sin ORM — suficiente para el
+  esquema de tres tablas de la sección 6.
+- **Tipos de dominio (`Quote`, `Candle`, `SymbolMatch`, `NewsItem`):** `dataclasses`
+  estándar de Python, no modelos pydantic — para mantener el `Protocol Provider`
+  desacoplado de FastAPI/pydantic. Son tipos de dominio internos; si hace falta
+  serializarlos a modelos de request/response HTTP, eso se resuelve en los endpoints de
+  negocio (feature 5), que podrán envolverlos o mapearlos.
+- **Convención de tests:** `pytest`, un fichero de test por módulo principal
+  (`test_app.py`, `test_db.py`, `test_provider_protocol.py`), ejecutado desde `backend/`.
+  Sin llamadas a red real en los tests (aplica también a providers futuros, ver sección
+  9).
 
 ---
 
