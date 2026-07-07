@@ -5,6 +5,7 @@
   import ErrorPanel from './panels/ErrorPanel.svelte';
   import ChartPanel from './panels/ChartPanel.svelte';
   import HelpPanel from './panels/HelpPanel.svelte';
+  import NewsPanel from './panels/NewsPanel.svelte';
   import PortfolioPanel from './panels/PortfolioPanel.svelte';
   import SummaryPanel from './panels/SummaryPanel.svelte';
   import WatchlistPanel from './panels/WatchlistPanel.svelte';
@@ -39,6 +40,7 @@
     <div class="examples">
       <div><span class="acc">AAPL</span> <span class="dim">resumen de activo</span></div>
       <div><span class="acc">AAPL GP</span> <span class="dim">gráfico de precio</span></div>
+      <div><span class="acc">AAPL NEWS</span> <span class="dim">noticias del activo</span></div>
       <div><span class="acc">PORT</span> <span class="dim">cartera</span></div>
       <div><span class="acc">WATCH</span> <span class="dim">watchlist en vivo</span></div>
       <div><span class="acc">HELP</span> <span class="dim">lista de comandos</span></div>
@@ -54,6 +56,8 @@
   <PortfolioPanel {response} />
 {:else if kind === 'help' && response?.type === 'HELP'}
   <HelpPanel {response} />
+{:else if kind === 'news' && response?.type === 'NEWS'}
+  <NewsPanel {response} />
 {:else if kind === 'watch'}
   <WatchlistPanel />
 {:else}

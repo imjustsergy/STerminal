@@ -45,6 +45,13 @@ export interface PortfolioSummary {
   holdings_count: number;
 }
 
+export interface NewsItem {
+  title: string;
+  url: string;
+  source: string;
+  published_at: string;
+}
+
 export interface HelpEntry {
   usage: string;
   type: string;
@@ -76,12 +83,21 @@ export interface HelpResponse {
   commands: HelpEntry[];
 }
 
+/** feat-12: `items` puede ser `[]` para crypto/fx — no es un error, es el dato real. */
+export interface NewsResponse {
+  type: 'NEWS';
+  symbol: string;
+  asset_class: string;
+  items: NewsItem[];
+}
+
 /** Unión discriminada de todo lo que `POST /command` puede devolver con 200. */
 export type CommandResponse =
   | SummaryResponse
   | GraphPriceResponse
   | PortfolioResponse
-  | HelpResponse;
+  | HelpResponse
+  | NewsResponse;
 
 /** Detalle de error tal cual lo construye `command_router.py::_data_error_detail`. */
 export interface CommandErrorDetail {
