@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:#05070e;}
+  *{box-sizing:border-box;}
+  ::selection{background:rgba(120,150,255,.28);}
+  input::placeholder{color:var(--dimmer);}
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);}
+  ::-webkit-scrollbar-track{background:transparent;}
+  a{color:var(--acc);}
+  a:hover{color:var(--fg);}
+  button:hover{filter:brightness(1.25);}
+</style>
+</helmet>
+<div style="{{ rootStyle }}">
+
+  <sc-if value="{{ scanlines }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;pointer-events:none;z-index:60;background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,.16) 3px);"></div>
+  </sc-if>
+
+  <!-- ============ HEADER ============ -->
+  <div style="display:flex;align-items:center;gap:14px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex:none;">
+    <div style="display:flex;align-items:baseline;gap:8px;">
+      <span style="color:var(--acc);font-weight:700;letter-spacing:1.5px;">sterminal</span>
+      <span style="color:var(--dimmer);font-size:11px;">v0.9 · local</span>
+    </div>
+    <div style="width:1px;height:14px;background:var(--border);"></div>
+    <span style="color:var(--pos);font-size:11px;font-weight:500;">● {{ connLabel }}</span>
+    <span style="color:var(--warn);font-size:11px;">{{ cacheLabel }}</span>
+    <div style="flex:1;"></div>
+    <span style="color:var(--dim);font-size:11px;">{{ mktLabel }}</span>
+    <div style="width:1px;height:14px;background:var(--border);"></div>
+    <span style="color:var(--fg);font-variant-numeric:tabular-nums;letter-spacing:.5px;">{{ clock }}</span>
+  </div>
+
+  <!-- ============ TICKER ============ -->
+  <div style="display:flex;border-bottom:1px solid var(--border);background:var(--panel2);flex:none;overflow:hidden;white-space:nowrap;">
+    <sc-for list="{{ ticker }}" as="t" hint-placeholder-count="9">
+      <div style="display:flex;align-items:center;gap:7px;padding:4px 13px;border-right:1px solid var(--border);font-size:11px;">
+        <span style="color:var(--dim);font-weight:500;">{{ t.sym }}</span>
+        <span style="color:var(--fg);font-variant-numeric:tabular-nums;">{{ t.price }}</span>
+        <span style="font-variant-numeric:tabular-nums;color:{{ t.cVar }};">{{ t.chg }}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- ============ MAIN ============ -->
+  <div style="flex:1;min-height:0;overflow:auto;position:relative;">
+
+    <!-- DASHBOARD (grid layout) -->
+    <sc-if value="{{ showDash }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px;background:var(--border);height:100%;min-height:520px;">
+        <!-- watch -->
+        <div style="background:var(--bg);display:flex;flex-direction:column;overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex:none;"><span style="color:var(--acc);font-weight:700;font-size:11px;letter-spacing:1px;">WATCHLIST</span><span style="color:var(--dimmer);font-size:11px;">WATCH</span></div>
+          <div style="overflow:auto;flex:1;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <tbody>
+                <sc-for list="{{ watchRows }}" as="w" hint-placeholder-count="8">
+                  <tr>
+                    <td style="padding:4px 12px;border-bottom:1px solid var(--border);font-weight:500;">{{ w.sym }}</td>
+                    <td style="padding:4px 12px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;">{{ w.price }}</td>
+                    <td style="padding:4px 12px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:{{ w.cVar }};">{{ w.pct }}</td>
+                    <td style="padding:4px 12px;border-bottom:1px solid var(--border);text-align:right;color:{{ w.cVar }};letter-spacing:-1px;">{{ w.spark }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- movers -->
+        <div style="background:var(--bg);display:flex;flex-direction:column;overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex:none;"><span style="color:var(--acc);font-weight:700;font-size:11px;letter-spacing:1px;">MOVERS</span><span style="color:var(--dimmer);font-size:11px;">MOVERS</span></div>
+          <div style="overflow:auto;flex:1;padding:2px 0;">
+            <sc-for list="{{ moversAll }}" as="m" hint-placeholder-count="8">
+              <div style="display:flex;align-items:center;gap:8px;padding:3px 12px;border-bottom:1px solid var(--border);font-size:12px;">
+                <span style="width:64px;font-weight:500;">{{ m.sym }}</span>
+                <span style="flex:1;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m.name }}</span>
+                <span style="font-variant-numeric:tabular-nums;">{{ m.price }}</span>
+                <span style="width:74px;text-align:right;font-variant-numeric:tabular-nums;color:{{ m.cVar }};">{{ m.pct }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <!-- port -->
+        <div style="background:var(--bg);display:flex;flex-direction:column;overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex:none;"><span style="color:var(--acc);font-weight:700;font-size:11px;letter-spacing:1px;">CARTERA</span><span style="color:var(--dimmer);font-size:11px;">PORT</span><div style="flex:1;"></div><span style="font-variant-numeric:tabular-nums;color:{{ totals.pnlCVar }};font-size:11px;">{{ totals.pnl }} ({{ totals.pnlPct }})</span></div>
+          <div style="overflow:auto;flex:1;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <tbody>
+                <sc-for list="{{ portRows }}" as="p" hint-placeholder-count="6">
+                  <tr>
+                    <td style="padding:4px 12px;border-bottom:1px solid var(--border);font-weight:500;">{{ p.sym }}</td>
+                    <td style="padding:4px 12px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:var(--dim);">{{ p.val }}</td>
+                    <td style="padding:4px 12px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:{{ p.pnlCVar }};">{{ p.pnl }}</td>
+                    <td style="padding:4px 12px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:{{ p.pnlCVar }};">{{ p.pnlPct }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- chart -->
+        <div style="background:var(--bg);display:flex;flex-direction:column;overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex:none;"><span style="color:var(--acc);font-weight:700;font-size:11px;letter-spacing:1px;">{{ gridSym }}</span><span style="color:var(--dimmer);font-size:11px;">1M · LÍNEA</span></div>
+          <div style="flex:1;padding:8px 10px;min-height:0;"><canvas ref="{{ gridRef }}" style="width:100%;height:100%;display:block;"></canvas></div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- FOCUS panels -->
+    <sc-if value="{{ showFocus }}" hint-placeholder-val="{{ true }}">
+
+      <!-- WELCOME -->
+      <sc-if value="{{ isWelcome }}" hint-placeholder-val="{{ true }}">
+        <div style="max-width:840px;margin:0 auto;padding:44px 32px 60px;">
+          <div style="font-size:46px;font-weight:700;letter-spacing:3px;color:var(--acc);line-height:1;">sterminal</div>
+          <div style="color:var(--dim);margin-top:10px;font-size:13px;">Terminal financiero personal · acciones · cripto · forex · materias primas · tu cartera</div>
+          <div style="height:1px;background:var(--border);margin:26px 0;"></div>
+          <div style="color:var(--dimmer);font-size:11px;letter-spacing:1.5px;margin-bottom:12px;">EMPEZAR — escribe un comando y pulsa ENTER</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <sc-for list="{{ quickCmds }}" as="q" hint-placeholder-count="8">
+              <div style="display:flex;gap:12px;padding:8px 13px;border:1px solid var(--border);background:var(--panel);">
+                <span style="color:var(--acc);font-weight:700;min-width:104px;">{{ q.cmd }}</span>
+                <span style="color:var(--dim);">{{ q.desc }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="color:var(--dimmer);font-size:11px;letter-spacing:1.5px;margin:30px 0 12px;">MERCADO AHORA</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <tbody>
+              <sc-for list="{{ snapRows }}" as="s" hint-placeholder-count="6">
+                <tr>
+                  <td style="padding:6px 12px;border-bottom:1px solid var(--border);font-weight:500;width:80px;">{{ s.sym }}</td>
+                  <td style="padding:6px 12px;border-bottom:1px solid var(--border);color:var(--dim);">{{ s.name }}</td>
+                  <td style="padding:6px 12px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;">{{ s.price }}</td>
+                  <td style="padding:6px 12px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:{{ s.cVar }};width:96px;">{{ s.chg }}</td>
+                  <td style="padding:6px 12px;border-bottom:1px solid var(--border);text-align:right;color:{{ s.cVar }};letter-spacing:-1px;width:150px;">{{ s.spark }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </sc-if>
+
+      <!-- SUMMARY -->
+      <sc-if value="{{ isSummary }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;align-items:flex-end;gap:16px;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--panel);">
+            <div>
+              <div style="display:flex;align-items:center;gap:9px;"><span style="font-size:24px;font-weight:700;">{{ sum.sym }}</span><span style="font-size:10px;color:var(--dim);border:1px solid var(--border);padding:1px 6px;letter-spacing:.5px;">{{ sum.clsLabel }}</span></div>
+              <div style="color:var(--dim);font-size:12px;margin-top:3px;">{{ sum.name }}</div>
+            </div>
+            <div style="flex:1;"></div>
+            <sc-if value="{{ sum.stale }}" hint-placeholder-val="{{ false }}"><span style="color:var(--warn);font-size:11px;border:1px solid var(--warn);padding:3px 7px;align-self:center;">⚠ EN CACHÉ · {{ sum.age }}</span></sc-if>
+            <div style="text-align:right;">
+              <div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ sum.cVar }};line-height:1;">{{ sum.price }}</div>
+              <div style="font-variant-numeric:tabular-nums;color:{{ sum.cVar }};font-size:14px;margin-top:4px;">{{ sum.arrow }} {{ sum.chg }} ({{ sum.chgPct }})</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:360px 1fr;">
+            <div style="border-right:1px solid var(--border);padding:6px 0;">
+              <sc-for list="{{ sum.stats }}" as="st" hint-placeholder-count="8">
+                <div style="display:flex;justify-content:space-between;gap:16px;padding:6px 18px;border-bottom:1px dashed var(--border);font-size:12px;">
+                  <span style="color:var(--dim);">{{ st.label }}</span>
+                  <span style="font-variant-numeric:tabular-nums;color:{{ st.cVar }};">{{ st.val }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="padding:12px 18px;">
+              <div style="display:flex;gap:14px;color:var(--dimmer);font-size:11px;letter-spacing:1px;margin-bottom:6px;"><span>3 MESES · LÍNEA</span><span style="color:var(--dim);">· escribe {{ sum.sym }} GP para gráfico completo</span></div>
+              <canvas ref="{{ summaryRef }}" style="width:100%;height:300px;display:block;"></canvas>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- CHART -->
+      <sc-if value="{{ isChart }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;padding:9px 18px;border-bottom:1px solid var(--border);background:var(--panel);flex-wrap:wrap;">
+            <span style="font-weight:700;font-size:16px;">{{ chartSym }}</span>
+            <span style="color:var(--dim);font-size:12px;">{{ chartName }}</span>
+            <span style="font-variant-numeric:tabular-nums;color:{{ chartCVar }};font-size:14px;">{{ chartPrice }}&nbsp;&nbsp;{{ chartArrow }} {{ chartChg }}</span>
+            <div style="flex:1;"></div>
+            <div style="display:flex;gap:3px;">
+              <sc-for list="{{ ranges }}" as="r" hint-placeholder-count="5">
+                <button onClick="{{ r.on }}" style="background:{{ r.bg }};color:{{ r.fg }};border:1px solid var(--border);padding:4px 11px;font-family:inherit;font-size:11px;font-weight:500;cursor:pointer;">{{ r.label }}</button>
+              </sc-for>
+            </div>
+            <div style="width:1px;height:16px;background:var(--border);"></div>
+            <div style="display:flex;gap:3px;">
+              <sc-for list="{{ modes }}" as="md" hint-placeholder-count="2">
+                <button onClick="{{ md.on }}" style="background:{{ md.bg }};color:{{ md.fg }};border:1px solid var(--border);padding:4px 11px;font-family:inherit;font-size:11px;font-weight:500;cursor:pointer;">{{ md.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="padding:14px 18px;"><canvas ref="{{ chartRef }}" style="width:100%;height:calc(100vh - 250px);min-height:320px;display:block;"></canvas></div>
+        </div>
+      </sc-if>
+
+      <!-- PORT -->
+      <sc-if value="{{ isPort }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--border);background:var(--panel);flex-wrap:wrap;">
+            <span style="font-weight:700;font-size:15px;">CARTERA</span>
+            <div style="flex:1;"></div>
+            <div style="display:flex;gap:22px;font-size:12px;">
+              <div style="text-align:right;"><div style="color:var(--dim);font-size:10px;letter-spacing:.5px;">VALOR</div><div style="font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;">{{ totals.mv }}</div></div>
+              <div style="text-align:right;"><div style="color:var(--dim);font-size:10px;letter-spacing:.5px;">P&L TOTAL</div><div style="font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;color:{{ totals.pnlCVar }};">{{ totals.pnl }} ({{ totals.pnlPct }})</div></div>
+              <div style="text-align:right;"><div style="color:var(--dim);font-size:10px;letter-spacing:.5px;">P&L DÍA</div><div style="font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;color:{{ totals.dayCVar }};">{{ totals.day }}</div></div>
+            </div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr>
+                <th style="text-align:left;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">SÍMBOLO</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">CANT.</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">COSTE MED.</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">PRECIO</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">VALOR</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">P&L</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">P&L %</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">P&L DÍA</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">ASIG. %</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ portRows }}" as="p" hint-placeholder-count="6">
+                <tr>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);font-weight:500;"><span style="color:var(--fg);">{{ p.sym }}</span> <span style="color:var(--dimmer);font-size:10px;">{{ p.clsLabel }}</span></td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:var(--dim);">{{ p.qty }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:var(--dim);">{{ p.avg }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;">{{ p.price }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;">{{ p.val }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:{{ p.pnlCVar }};">{{ p.pnl }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:{{ p.pnlCVar }};">{{ p.pnlPct }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:{{ p.dayCVar }};">{{ p.day }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:var(--dim);">{{ p.alloc }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+          <div style="padding:10px 18px;color:var(--dimmer);font-size:11px;">Escribe <span style="color:var(--acc);">PORT ADD</span> para añadir/editar posiciones o importar/exportar CSV.</div>
+        </div>
+      </sc-if>
+
+      <!-- WATCH -->
+      <sc-if value="{{ isWatch }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);background:var(--panel);"><span style="font-weight:700;font-size:15px;">WATCHLIST</span><span style="color:var(--dim);font-size:11px;">actualización automática cada ~15 s</span></div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr>
+                <th style="text-align:left;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">SÍMBOLO</th>
+                <th style="text-align:left;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">NOMBRE</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">ÚLTIMO</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">CAMBIO</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">%</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">TENDENCIA</th>
+                <th style="text-align:right;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--panel2);">ESTADO</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ watchRows }}" as="w" hint-placeholder-count="8">
+                <tr>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);font-weight:500;">{{ w.sym }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);color:var(--dim);">{{ w.name }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;">{{ w.price }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:{{ w.cVar }};">{{ w.chg }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;color:{{ w.cVar }};">{{ w.pct }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;color:{{ w.cVar }};letter-spacing:-1px;font-size:13px;">{{ w.spark }}</td>
+                  <td style="padding:6px 14px;border-bottom:1px solid var(--border);text-align:right;font-size:10px;color:{{ w.statusCVar }};">{{ w.status }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </sc-if>
+
+      <!-- NEWS -->
+      <sc-if value="{{ isNews }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);background:var(--panel);"><span style="font-weight:700;font-size:15px;">{{ newsSym }} · NOTICIAS</span><span style="color:var(--dim);font-size:12px;">{{ newsName }}</span></div>
+          <sc-if value="{{ newsStale }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:8px 18px;background:var(--accdim);color:var(--warn);font-size:11px;border-bottom:1px solid var(--border);">⚠ Feed retrasado — mostrando titulares en caché ({{ newsAge }}).</div>
+          </sc-if>
+          <div>
+            <sc-for list="{{ newsItems }}" as="n" hint-placeholder-count="6">
+              <div style="display:flex;gap:14px;padding:10px 18px;border-bottom:1px solid var(--border);align-items:baseline;">
+                <span style="color:var(--dimmer);font-size:11px;width:78px;flex:none;font-variant-numeric:tabular-nums;">{{ n.time }}</span>
+                <span style="color:{{ n.tagCVar }};font-size:10px;width:76px;flex:none;letter-spacing:.5px;">{{ n.tag }}</span>
+                <div style="flex:1;">
+                  <div style="color:var(--fg);font-size:13px;line-height:1.4;">{{ n.headline }}</div>
+                  <div style="color:var(--dim);font-size:11px;margin-top:2px;">{{ n.source }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- MOVERS -->
+      <sc-if value="{{ isMovers }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);background:var(--panel);"><span style="font-weight:700;font-size:15px;">MOVERS</span><span style="color:var(--dim);font-size:11px;">mayores movimientos de la sesión</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);">
+            <div style="background:var(--bg);">
+              <div style="padding:7px 16px;color:var(--pos);font-size:11px;letter-spacing:1px;border-bottom:1px solid var(--border);">▲ SUBIDAS</div>
+              <sc-for list="{{ moversUp }}" as="m" hint-placeholder-count="6">
+                <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;border-bottom:1px solid var(--border);font-size:12px;">
+                  <span style="width:70px;font-weight:500;">{{ m.sym }}</span>
+                  <span style="flex:1;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m.name }}</span>
+                  <span style="font-variant-numeric:tabular-nums;">{{ m.price }}</span>
+                  <span style="color:var(--pos);letter-spacing:-1px;">{{ m.spark }}</span>
+                  <span style="width:74px;text-align:right;font-variant-numeric:tabular-nums;color:var(--pos);">{{ m.pct }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="background:var(--bg);">
+              <div style="padding:7px 16px;color:var(--neg);font-size:11px;letter-spacing:1px;border-bottom:1px solid var(--border);">▼ BAJADAS</div>
+              <sc-for list="{{ moversDown }}" as="m" hint-placeholder-count="6">
+                <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;border-bottom:1px solid var(--border);font-size:12px;">
+                  <span style="width:70px;font-weight:500;">{{ m.sym }}</span>
+                  <span style="flex:1;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m.name }}</span>
+                  <span style="font-variant-numeric:tabular-nums;">{{ m.price }}</span>
+                  <span style="color:var(--neg);letter-spacing:-1px;">{{ m.spark }}</span>
+                  <span style="width:74px;text-align:right;font-variant-numeric:tabular-nums;color:var(--neg);">{{ m.pct }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- HELP -->
+      <sc-if value="{{ isHelp }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:20px 18px 60px;max-width:820px;">
+          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">REFERENCIA DE COMANDOS</div>
+          <div style="color:var(--dim);font-size:12px;margin-bottom:20px;">Sintaxis: <span style="color:var(--acc);">[SÍMBOLO] [FUNCIÓN]</span> · Enter ejecuta · Tab autocompleta · ↑ ↓ historial</div>
+          <sc-for list="{{ helpGroups }}" as="g" hint-placeholder-count="4">
+            <div style="margin-bottom:22px;">
+              <div style="color:var(--dimmer);font-size:11px;letter-spacing:1.5px;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px;">{{ g.title }}</div>
+              <sc-for list="{{ g.items }}" as="c" hint-placeholder-count="4">
+                <div style="display:flex;gap:16px;padding:5px 0;font-size:12px;">
+                  <span style="color:var(--acc);font-weight:700;width:150px;flex:none;">{{ c.cmd }}</span>
+                  <span style="color:var(--fg);flex:1;">{{ c.desc }}</span>
+                  <span style="color:var(--dim);width:150px;flex:none;text-align:right;">{{ c.eg }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- FORM -->
+      <sc-if value="{{ isForm }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:16px 18px 60px;">
+          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">EDITAR CARTERA</div>
+          <div style="color:var(--dim);font-size:12px;margin-bottom:16px;">Entrada manual o importación CSV. Guarda para aplicar a PORT.</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;max-width:640px;">
+            <thead>
+              <tr>
+                <th style="text-align:left;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid var(--border);">SÍMBOLO</th>
+                <th style="text-align:left;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid var(--border);">CANTIDAD</th>
+                <th style="text-align:left;color:var(--dimmer);font-weight:400;font-size:10px;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid var(--border);">COSTE MEDIO</th>
+                <th style="border-bottom:1px solid var(--border);width:36px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ formRows }}" as="f" hint-placeholder-count="6">
+                <tr>
+                  <td style="padding:4px 10px;border-bottom:1px solid var(--border);"><input value="{{ f.sym }}" onChange="{{ f.onSym }}" spellcheck="false" style="width:110px;background:var(--panel2);border:1px solid var(--border);color:var(--fg);font-family:inherit;font-size:12px;padding:4px 7px;outline:none;text-transform:uppercase;" /></td>
+                  <td style="padding:4px 10px;border-bottom:1px solid var(--border);"><input value="{{ f.qty }}" onChange="{{ f.onQty }}" style="width:110px;background:var(--panel2);border:1px solid var(--border);color:var(--fg);font-family:inherit;font-size:12px;padding:4px 7px;outline:none;text-align:right;" /></td>
+                  <td style="padding:4px 10px;border-bottom:1px solid var(--border);"><input value="{{ f.avg }}" onChange="{{ f.onAvg }}" style="width:130px;background:var(--panel2);border:1px solid var(--border);color:var(--fg);font-family:inherit;font-size:12px;padding:4px 7px;outline:none;text-align:right;" /></td>
+                  <td style="padding:4px 10px;border-bottom:1px solid var(--border);text-align:center;"><button onClick="{{ f.onDel }}" style="background:transparent;border:1px solid var(--border);color:var(--neg);cursor:pointer;font-family:inherit;padding:3px 8px;font-size:11px;">✕</button></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+            <button onClick="{{ onAddRow }}" style="background:var(--panel2);border:1px solid var(--border);color:var(--fg);cursor:pointer;font-family:inherit;padding:6px 14px;font-size:12px;">+ Añadir fila</button>
+            <button onClick="{{ onSaveForm }}" style="background:var(--acc);border:1px solid var(--acc);color:#04101f;cursor:pointer;font-family:inherit;padding:6px 14px;font-size:12px;font-weight:700;">Guardar cartera</button>
+          </div>
+          <div style="color:var(--dimmer);font-size:11px;letter-spacing:1.5px;margin:26px 0 8px;">CSV — SÍMBOLO,CANTIDAD,COSTE</div>
+          <textarea value="{{ csv }}" onChange="{{ onCsv }}" spellcheck="false" style="width:100%;max-width:640px;height:120px;background:var(--panel2);border:1px solid var(--border);color:var(--fg);font-family:inherit;font-size:12px;padding:10px;outline:none;resize:vertical;line-height:1.6;"></textarea>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            <button onClick="{{ onImport }}" style="background:var(--panel2);border:1px solid var(--border);color:var(--fg);cursor:pointer;font-family:inherit;padding:6px 14px;font-size:12px;">↓ Importar CSV</button>
+            <button onClick="{{ onExport }}" style="background:var(--panel2);border:1px solid var(--border);color:var(--fg);cursor:pointer;font-family:inherit;padding:6px 14px;font-size:12px;">↑ Exportar CSV</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ERROR -->
+      <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:44px 32px;max-width:640px;margin:0 auto;">
+          <div style="color:var(--neg);font-size:15px;font-weight:500;">✕ {{ errMsg }}</div>
+          <div style="color:var(--dim);margin-top:12px;font-size:12px;">¿Quisiste decir?</div>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:2px;">
+            <sc-for list="{{ errSug }}" as="e" hint-placeholder-count="4">
+              <div style="display:flex;gap:14px;padding:5px 0;font-size:12px;"><span style="color:var(--acc);font-weight:700;min-width:130px;">{{ e.cmd }}</span><span style="color:var(--dim);">{{ e.desc }}</span></div>
+            </sc-for>
+          </div>
+          <div style="color:var(--dimmer);font-size:11px;margin-top:20px;">Escribe HELP para ver todos los comandos.</div>
+        </div>
+      </sc-if>
+
+    </sc-if>
+  </div>
+
+  <!-- ============ COMMAND BAR ============ -->
+  <div style="position:relative;flex:none;border-top:1px solid var(--border);background:var(--panel);">
+    <sc-if value="{{ showSug }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;bottom:100%;left:0;right:0;background:var(--panel2);border-top:1px solid var(--border);max-height:230px;overflow:auto;box-shadow:0 -4px 12px rgba(0,0,0,.4);">
+        <sc-for list="{{ sugg }}" as="s" hint-placeholder-count="0">
+          <div style="display:flex;justify-content:space-between;gap:16px;padding:5px 16px;background:{{ s.bg }};">
+            <span style="font-weight:700;color:{{ s.fg }};">{{ s.text }}</span>
+            <span style="color:var(--dim);font-size:11px;">{{ s.desc }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;">
+      <span style="color:var(--acc);font-weight:700;font-size:15px;">›</span>
+      <input value="{{ input }}" onChange="{{ onChange }}" onKeyDown="{{ onKey }}" ref="{{ inputRef }}" spellcheck="false" autocomplete="off" placeholder="Escribe un comando…  p.ej.  AAPL · BTC GP · PORT · MOVERS · HELP" style="flex:1;background:transparent;border:none;outline:none;color:var(--fg);font-family:inherit;font-size:15px;caret-color:var(--acc);letter-spacing:.5px;text-transform:uppercase;" />
+      <span style="color:var(--dimmer);font-size:11px;white-space:nowrap;">{{ hint }}</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;cobalt&quot;,&quot;amber&quot;,&quot;phosphor&quot;],&quot;default&quot;:&quot;cobalt&quot;,&quot;tsType&quot;:&quot;'cobalt'|'amber'|'phosphor'&quot;,&quot;section&quot;:&quot;Apariencia&quot;},&quot;layout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;focus&quot;,&quot;grid&quot;],&quot;default&quot;:&quot;focus&quot;,&quot;tsType&quot;:&quot;'focus'|'grid'&quot;,&quot;section&quot;:&quot;Apariencia&quot;},&quot;scanlines&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Apariencia&quot;}}">
+class Component extends DCLogic {
+  // ---------- static data ----------
+  themes = {
+    cobalt:  {bg:'#05070e',panel:'#0a0f1b',panel2:'#0c1322',border:'#1b2540',fg:'#cdd8ee',dim:'#7686a3',dimmer:'#41506c',acc:'#3d7bff',accdim:'#13233f',pos:'#2fd48b',neg:'#ff5566',warn:'#ffb02e'},
+    amber:   {bg:'#070502',panel:'#0c0904',panel2:'#110c05',border:'#2b2109',fg:'#f4b52c',dim:'#9a781e',dimmer:'#5a460f',acc:'#ffa72e',accdim:'#2e2107',pos:'#3ad06f',neg:'#ff5b4a',warn:'#ffd24a'},
+    phosphor:{bg:'#020604',panel:'#04100a',panel2:'#06150c',border:'#0f3a26',fg:'#86ffc4',dim:'#33b981',dimmer:'#155a3c',acc:'#33ff99',accdim:'#0a341f',pos:'#7dffab',neg:'#ff6673',warn:'#ffe15c'}
+  };
+
+  DB = this.buildDB();
+  quotes = this.initQuotes();
+  _series = {};
+  _c = {};
+
+  state = {
+    input:'', activeType:'welcome', activeSym:'AAPL',
+    chartRange:'1M', chartMode:'candles',
+    history:[], histIdx:-1, selIdx:0, showSug:false,
+    now:Date.now(), tickN:0,
+    port:[{sym:'AAPL',qty:50,avg:170.25},{sym:'NVDA',qty:120,avg:78.40},{sym:'MSFT',qty:20,avg:381.10},{sym:'BTC',qty:0.75,avg:41200},{sym:'ETH',qty:5,avg:2350},{sym:'SOL',qty:60,avg:88.0}],
+    watch:['AAPL','NVDA','TSLA','BTC','ETH','SOL','EURUSD','GOLD','SPY'],
+    formRows:null, csv:''
+  };
+
+  buildDB(){
+    const d={};
+    const add=(sym,name,base,cls)=>{d[sym]={sym,name,base,cls};};
+    add('AAPL','Apple Inc.',214.30,'stock');
+    add('MSFT','Microsoft Corp.',452.10,'stock');
+    add('NVDA','NVIDIA Corp.',128.60,'stock');
+    add('TSLA','Tesla Inc.',249.80,'stock');
+    add('AMZN','Amazon.com Inc.',201.50,'stock');
+    add('GOOGL','Alphabet Inc.',178.20,'stock');
+    add('META','Meta Platforms',512.40,'stock');
+    add('AMD','Adv. Micro Devices',162.90,'stock');
+    add('SPY','SPDR S&P 500 ETF',548.90,'etf');
+    add('QQQ','Invesco Nasdaq 100',476.30,'etf');
+    add('BTC','Bitcoin',61240.00,'crypto');
+    add('ETH','Ethereum',3380.50,'crypto');
+    add('SOL','Solana',142.80,'crypto');
+    add('DOGE','Dogecoin',0.1320,'crypto');
+    add('EURUSD','Euro / US Dollar',1.0842,'forex');
+    add('GBPUSD','Libra / US Dollar',1.2715,'forex');
+    add('USDJPY','US Dollar / Yen',157.30,'forex');
+    add('GOLD','Oro spot (XAU)',2338.40,'commodity');
+    add('OIL','Crudo WTI',78.55,'commodity');
+    return d;
+  }
+
+  hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+  mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  dayVol(cls){return cls==='crypto'?0.05:cls==='forex'?0.006:cls==='commodity'?0.015:cls==='etf'?0.012:0.022;}
+
+  initQuotes(){
+    const q={};const now=Date.now();
+    Object.values(this.DB).forEach(d=>{
+      const r=this.mulberry32(this.hash(d.sym));
+      const dv=(r()*2-1)*this.dayVol(d.cls);
+      const price=d.base;
+      const prevClose=price/(1+dv);
+      const open=prevClose*(1+(r()-0.5)*this.dayVol(d.cls)*0.5);
+      const stale=(d.cls==='forex'||d.cls==='commodity');
+      let shares;
+      if(d.cls==='crypto') shares=d.sym==='BTC'?19.7e6:d.sym==='ETH'?120e6:d.sym==='SOL'?460e6:145e9;
+      else shares=(1+r()*15)*1e9;
+      q[d.sym]={
+        sym:d.sym,name:d.name,cls:d.cls,price,prevClose,open,
+        dayHigh:Math.max(open,price)*(1+r()*this.dayVol(d.cls)*0.4),
+        dayLow:Math.min(open,price)*(1-r()*this.dayVol(d.cls)*0.4),
+        wkHigh:price*(1+0.14+r()*0.35),
+        wkLow:price*(1-(0.14+r()*0.32)),
+        vol:(d.cls==='crypto'?(2+r()*8)*1e4:d.cls==='forex'?(6+r()*10)*1e10:d.cls==='commodity'?(1+r()*4)*1e5:(2+r()*7)*1e7),
+        avgVol:(d.cls==='crypto'?(3+r()*6)*1e4:d.cls==='forex'?(5+r()*8)*1e10:d.cls==='commodity'?(1+r()*3)*1e5:(2+r()*6)*1e7),
+        mktCap:(d.cls==='forex'||d.cls==='commodity')?0:price*shares,
+        stale,lastMs:now-(stale?22000:1200)
+      };
+    });
+    return q;
+  }
+
+  // ---------- lifecycle ----------
+  componentDidMount(){
+    this._clk=setInterval(()=>this.setState({now:Date.now()}),1000);
+    this._tk=setInterval(()=>this.tick(),6000);
+    this._onKey=(e)=>{
+      const tag=(e.target&&e.target.tagName)||'';
+      if(tag==='INPUT'||tag==='TEXTAREA') return;
+      if(e.metaKey||e.ctrlKey||e.altKey) return;
+      if(e.key.length===1||e.key==='Backspace'){ if(this._input){ this._input.focus(); } }
+    };
+    window.addEventListener('keydown',this._onKey);
+    if(this._input) this._input.focus();
+    this.redraw();
+  }
+  componentWillUnmount(){clearInterval(this._clk);clearInterval(this._tk);window.removeEventListener('keydown',this._onKey);}
+  componentDidUpdate(){this.redraw();}
+
+  tick(){
+    const now=Date.now();const n=this.state.tickN+1;
+    Object.values(this.quotes).forEach(q=>{
+      const live=!(q.cls==='forex'||q.cls==='commodity');
+      if(live || n%4===0){
+        const step=q.price*this.dayVol(q.cls)*0.14*(Math.random()-0.5)*2;
+        q.price=Math.max(0.0001,q.price+step);
+        q.dayHigh=Math.max(q.dayHigh,q.price);
+        q.dayLow=Math.min(q.dayLow,q.price);
+        q.lastMs=now;
+        Object.keys(this._series).forEach(k=>{
+          if(k.indexOf(q.sym+'|')===0){const a=this._series[k];const last=a[a.length-1];if(last){last.c=q.price;last.h=Math.max(last.h,q.price);last.l=Math.min(last.l,q.price);}}
+        });
+      }
+    });
+    this.setState({tickN:n,now});
+  }
+
+  theme(){return this.themes[this.props.theme]||this.themes.cobalt;}
+
+  // ---------- formatting ----------
+  fmtN(n,dp){return Number(n).toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp});}
+  priceDp(cls,p){if(cls==='forex')return 4;if(cls==='crypto')return p<1?4:2;return 2;}
+  price(sym){const q=this.quotes[sym];return this.fmtN(q.price,this.priceDp(q.cls,q.price));}
+  fmtVol(n){if(n>=1e12)return(n/1e12).toFixed(2)+'T';if(n>=1e9)return(n/1e9).toFixed(2)+'B';if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return String(Math.round(n));}
+  fmtCap(n){if(!n)return'—';if(n>=1e12)return'$'+(n/1e12).toFixed(2)+'T';if(n>=1e9)return'$'+(n/1e9).toFixed(1)+'B';return'$'+(n/1e6).toFixed(0)+'M';}
+  fmtUsd(n){const s=n<0?'-':'';const a=Math.abs(n);return s+'$'+this.fmtN(a,a<100?2:0);}
+  cVar(x){return x>0?'var(--pos)':x<0?'var(--neg)':'var(--dim)';}
+  arrow(x){return x>0?'▲':x<0?'▼':'■';}
+  pctStr(x){return(x>0?'+':x<0?'':'')+x.toFixed(2)+'%';}
+  chgPct(sym){const q=this.quotes[sym];return(q.price-q.prevClose)/q.prevClose*100;}
+  chgAbs(sym){const q=this.quotes[sym];return q.price-q.prevClose;}
+  clsLabel(cls){return({stock:'ACCIÓN',etf:'ETF',crypto:'CRIPTO',forex:'FOREX',commodity:'MATERIA'})[cls]||cls;}
+  shortName(sym){return this.DB[sym].name.replace(/ (Inc\.|Corp\.|Platforms|Ltd\.)$/,'');}
+
+  spark(closes){const b='▁▂▃▄▅▆▇█';if(!closes.length)return'';const mn=Math.min(...closes),mx=Math.max(...closes),r=mx-mn||1;return closes.map(c=>b[Math.min(7,Math.floor((c-mn)/r*7.999))]).join('');}
+  sparkFor(sym){const s=this.series(sym,'1M');return this.spark(s.slice(-14).map(k=>k.c));}
+
+  ageStr(sym){const a=Math.round((this.state.now-this.quotes[sym].lastMs)/1000);if(a<60)return'hace '+a+'s';return'hace '+Math.round(a/60)+'m';}
+  isStale(sym){const q=this.quotes[sym];return q.stale && (this.state.now-q.lastMs)>16000;}
+
+  // ---------- series / chart ----------
+  series(sym,range){
+    const key=sym+'|'+range;if(this._series[key])return this._series[key];
+    const counts={'1D':78,'5D':100,'1M':22,'3M':66,'1Y':52};
+    const q=this.quotes[sym];const n=counts[range]||30;
+    const rng=this.mulberry32(this.hash(key));
+    const vol=q.cls==='crypto'?0.032:q.cls==='forex'?0.004:q.cls==='commodity'?0.012:0.017;
+    let p=q.price*(1-(rng()-0.5)*vol*n*0.12);
+    const arr=[];for(let i=0;i<n;i++){p=p*(1+(rng()-0.5)*vol*2.1);arr.push(p);}
+    const f=q.price/arr[arr.length-1];for(let i=0;i<n;i++)arr[i]*=f;
+    const c=[];for(let i=0;i<n;i++){const cl=arr[i];const o=i>0?arr[i-1]:cl*(1-(rng()-0.5)*vol);const hi=Math.max(o,cl)*(1+rng()*vol*0.7);const lo=Math.min(o,cl)*(1-rng()*vol*0.7);c.push({o,h:hi,l:lo,c:cl});}
+    this._series[key]=c;return c;
+  }
+
+  redraw(){
+    try{
+      const st=this.state;
+      if(this._c.chart && st.activeType==='chart') this.drawChart(this._c.chart,st.activeSym,st.chartRange,st.chartMode);
+      if(this._c.summary && st.activeType==='summary') this.drawChart(this._c.summary,st.activeSym,'3M','line');
+      if(this._c.grid) this.drawChart(this._c.grid,'SPY','1M','line');
+    }catch(e){}
+  }
+
+  drawChart(canvas,sym,range,mode){
+    if(!canvas)return;
+    const s=this.series(sym,range);if(!s.length)return;
+    const th=this.theme();
+    const w=canvas.clientWidth||600,h=canvas.clientHeight||300;
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+    const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+    const pad={l:6,r:60,t:12,b:20};
+    const n=s.length;
+    let mn=Infinity,mx=-Infinity;
+    s.forEach(c=>{mn=Math.min(mn,c.l);mx=Math.max(mx,c.h);});
+    const rangeP=(mx-mn)||1;mn-=rangeP*0.06;mx+=rangeP*0.06;
+    const X=w-pad.l-pad.r,Y=h-pad.t-pad.b;
+    const q=this.quotes[sym];const dp=this.priceDp(q.cls,q.price);
+    const y=v=>pad.t+(mx-v)/(mx-mn)*Y;
+    const x=i=>pad.l+(n<=1?0:(i/(n-1))*X);
+    // grid
+    ctx.strokeStyle=th.border;ctx.lineWidth=1;ctx.font='10px "JetBrains Mono",monospace';ctx.fillStyle=th.dim;ctx.textBaseline='middle';
+    for(let g=0;g<=4;g++){const v=mn+(mx-mn)*g/4;const yy=Math.round(y(v))+0.5;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();ctx.fillText(this.fmtN(v,dp),w-pad.r+6,yy);}
+    if(mode==='line'){
+      ctx.beginPath();s.forEach((c,i)=>{const xx=x(i),yy=y(c.c);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);});
+      ctx.lineTo(x(n-1),h-pad.b);ctx.lineTo(x(0),h-pad.b);ctx.closePath();
+      ctx.fillStyle=th.accdim;ctx.globalAlpha=0.55;ctx.fill();ctx.globalAlpha=1;
+      ctx.beginPath();s.forEach((c,i)=>{const xx=x(i),yy=y(c.c);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);});
+      ctx.strokeStyle=th.acc;ctx.lineWidth=1.6;ctx.stroke();
+    }else{
+      const cw=Math.max(1,X/n*0.62);
+      s.forEach((c,i)=>{const xx=x(i);const up=c.c>=c.o;ctx.strokeStyle=up?th.pos:th.neg;ctx.fillStyle=up?th.pos:th.neg;
+        ctx.beginPath();ctx.moveTo(xx,y(c.h));ctx.lineTo(xx,y(c.l));ctx.stroke();
+        const yo=y(c.o),yc=y(c.c);const top=Math.min(yo,yc);const bh=Math.max(1,Math.abs(yc-yo));ctx.fillRect(xx-cw/2,top,cw,bh);});
+    }
+    // last price line
+    const lp=q.price;const yy=Math.round(y(lp))+0.5;
+    ctx.strokeStyle=th.acc;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=th.acc;ctx.fillRect(w-pad.r,yy-8,pad.r,16);ctx.fillStyle=th.bg;ctx.textAlign='left';ctx.fillText(this.fmtN(lp,dp),w-pad.r+5,yy);ctx.textAlign='left';
+  }
+
+  // ---------- command engine ----------
+  CMDS(){return[{text:'PORT',desc:'Cartera y P&L'},{text:'PORT ADD',desc:'Editar / importar CSV'},{text:'WATCH',desc:'Lista de seguimiento'},{text:'MOVERS',desc:'Mayores movimientos'},{text:'HELP',desc:'Referencia de comandos'}];}
+
+  suggestions(raw){
+    const v=(raw||'').trim().toUpperCase();if(!v)return[];
+    const parts=v.split(/\s+/);const out=[];
+    if(parts.length===1){
+      const t=parts[0];
+      this.CMDS().forEach(c=>{if(c.text.startsWith(t))out.push({text:c.text,desc:c.desc});});
+      Object.keys(this.DB).filter(s=>s.startsWith(t)).forEach(s=>out.push({text:s,desc:this.DB[s].name+' · '+this.clsLabel(this.DB[s].cls)}));
+    }else if(parts.length===2 && this.DB[parts[0]]){
+      [{text:'GP',desc:'Gráfico de precio'},{text:'NEWS',desc:'Noticias'},{text:'DES',desc:'Resumen del activo'}].forEach(f=>{if(f.text.startsWith(parts[1]))out.push({text:parts[0]+' '+f.text,desc:f.desc});});
+    }
+    return out.slice(0,7);
+  }
+
+  closest(t){
+    const keys=Object.keys(this.DB);
+    const pre=keys.filter(s=>s.startsWith(t.charAt(0)));
+    const list=(pre.length?pre:keys).slice(0,4);
+    return list.map(s=>({cmd:s,desc:this.DB[s].name}));
+  }
+
+  run(raw){
+    const cmd=(raw||'').trim();if(!cmd)return;
+    const hist=[cmd.toUpperCase(),...this.state.history].slice(0,60);
+    const p=cmd.toUpperCase().split(/\s+/);const t0=p[0];
+    const ns={history:hist,input:'',showSug:false,histIdx:-1,selIdx:0};
+    if(t0==='HELP'){ns.activeType='help';}
+    else if(t0==='WATCH'){ns.activeType='watch';}
+    else if(t0==='MOVERS'){ns.activeType='movers';}
+    else if(t0==='HOME'||t0==='DASH'){ns.activeType='welcome';}
+    else if(t0==='PORT'){ if(p[1]==='ADD'||p[1]==='EDIT'){ns.activeType='form';ns.formRows=this.freshForm();} else ns.activeType='port'; }
+    else if(t0==='ADD'||t0==='EDIT'){ns.activeType='form';ns.formRows=this.freshForm();}
+    else if(this.DB[t0]){
+      ns.activeSym=t0;const f=p[1];
+      if(!f||f==='DES'||f==='DESC'){ns.activeType='summary';}
+      else if(f==='GP'||f==='G'||f==='CHART'){ns.activeType='chart';}
+      else if(f==='NEWS'||f==='N'){ns.activeType='news';}
+      else{ns.activeType='error';ns.errMsg='Función no reconocida: '+f;ns.errSug=[{cmd:t0+' GP',desc:'Gráfico de precio'},{cmd:t0+' NEWS',desc:'Noticias'},{cmd:t0,desc:'Resumen'}];}
+    }else{
+      ns.activeType='error';ns.errMsg='Símbolo o comando no encontrado: '+t0;ns.errSug=this.closest(t0);
+    }
+    this.setState(ns,()=>this.redraw());
+  }
+
+  onChange=(e)=>{const v=e.target.value;const sug=this.suggestions(v);this.setState({input:v,showSug:sug.length>0&&v.trim().length>0,selIdx:0,histIdx:-1});};
+  onKey=(e)=>{
+    const st=this.state;const sug=this.suggestions(st.input);
+    if(e.key==='Enter'){e.preventDefault();this.run(st.input);}
+    else if(e.key==='Tab'){e.preventDefault();if(sug.length){const s=sug[Math.min(st.selIdx,sug.length-1)];const nv=s.text+' ';const n2=this.suggestions(nv);this.setState({input:nv,selIdx:0,showSug:n2.length>0});}}
+    else if(e.key==='ArrowUp'){e.preventDefault();if(st.showSug&&sug.length){this.setState({selIdx:Math.max(0,st.selIdx-1)});}else{const ni=Math.min(st.history.length-1,st.histIdx+1);if(st.history[ni]!==undefined)this.setState({histIdx:ni,input:st.history[ni],showSug:false});}}
+    else if(e.key==='ArrowDown'){e.preventDefault();if(st.showSug&&sug.length){this.setState({selIdx:Math.min(sug.length-1,st.selIdx+1)});}else{const ni=st.histIdx-1;if(ni<0)this.setState({histIdx:-1,input:''});else this.setState({histIdx:ni,input:st.history[ni]});}}
+    else if(e.key==='Escape'){e.preventDefault();if(st.input)this.setState({input:'',showSug:false,selIdx:0});else this.setState({activeType:'welcome',showSug:false});}
+  };
+
+  setRange=(r)=>()=>this.setState({chartRange:r},()=>this.redraw());
+  setMode=(m)=>()=>this.setState({chartMode:m},()=>this.redraw());
+
+  // ---------- form ----------
+  freshForm(){return this.state.formRows||this.state.port.map(p=>({sym:p.sym,qty:String(p.qty),avg:String(p.avg)}));}
+  setCell(i,field){return(e)=>{const rows=this.freshForm().slice();rows[i]=Object.assign({},rows[i],{[field]:e.target.value});this.setState({formRows:rows});};}
+  addRow=()=>{const rows=this.freshForm().slice();rows.push({sym:'',qty:'',avg:''});this.setState({formRows:rows});};
+  delRow=(i)=>()=>{const rows=this.freshForm().slice();rows.splice(i,1);this.setState({formRows:rows});};
+  saveForm=()=>{const rows=this.freshForm();const port=[];rows.forEach(r=>{const sym=(r.sym||'').trim().toUpperCase();const qty=parseFloat(r.qty);const avg=parseFloat(r.avg);if(this.DB[sym]&&!isNaN(qty)&&!isNaN(avg))port.push({sym,qty,avg});});this.setState({port,activeType:'port',formRows:null});};
+  importCsv=()=>{const lines=(this.state.csv||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);const rows=[];lines.forEach(l=>{if(/símbolo|symbol|sym/i.test(l))return;const parts=l.split(/[,;\t]/).map(x=>x.trim());if(parts.length>=3)rows.push({sym:parts[0].toUpperCase(),qty:parts[1],avg:parts[2]});});if(rows.length)this.setState({formRows:rows});};
+  exportCsv=()=>{const rows=this.freshForm();const csv='SIMBOLO,CANTIDAD,COSTE\n'+rows.map(r=>[r.sym,r.qty,r.avg].join(',')).join('\n');this.setState({csv});};
+  setCsv=(e)=>this.setState({csv:e.target.value});
+
+  // ---------- news ----------
+  news(sym){
+    const q=this.DB[sym];const nm=this.shortName(sym);const cls=q.cls;
+    const T=(x)=>x;
+    let items;
+    if(cls==='crypto') items=[
+      {time:'hace 8m',tag:'MERCADO',tc:'var(--acc)',s:'CoinGecko',h:nm+' repunta al calor de mayores flujos hacia ETFs al contado'},
+      {time:'hace 41m',tag:'ON-CHAIN',tc:'var(--pos)',s:'Glassnode',h:'Direcciones activas de '+nm+' marcan máximos de tres meses'},
+      {time:'hace 1h',tag:'REGULACIÓN',tc:'var(--warn)',s:'Reuters',h:'Reguladores publican nuevas guías para custodios de activos digitales'},
+      {time:'hace 3h',tag:'MERCADO',tc:'var(--acc)',s:'CoinDesk',h:'Volatilidad de opciones de '+nm+' se enfría antes del vencimiento mensual'},
+      {time:'hace 6h',tag:'TÉCNICO',tc:'var(--dim)',s:'TradingView',h:nm+' defiende su media móvil de 50 sesiones tras el retroceso'}
+    ];
+    else if(cls==='forex'||cls==='commodity') items=[
+      {time:'hace 22m',tag:'MACRO',tc:'var(--acc)',s:'Bloomberg',h:nm+' reacciona a los últimos datos de inflación y expectativas de tipos'},
+      {time:'hace 55m',tag:'BANCA CENTRAL',tc:'var(--warn)',s:'Reuters',h:'Actas del banco central apuntan a una postura más cautelosa'},
+      {time:'hace 2h',tag:'FLUJOS',tc:'var(--pos)',s:'FT',h:'Posicionamiento institucional en '+nm+' se reduce según datos semanales'},
+      {time:'hace 4h',tag:'MACRO',tc:'var(--acc)',s:'AP',h:'Datos de empleo sorprenden y agitan al dólar en la sesión europea'},
+      {time:'hace 9h',tag:'TÉCNICO',tc:'var(--dim)',s:'DailyFX',h:nm+' cotiza dentro de un rango estrecho a la espera de catalizadores'}
+    ];
+    else items=[
+      {time:'hace 12m',tag:'RESULTADOS',tc:'var(--acc)',s:'Reuters',h:nm+' supera estimaciones de ingresos; el mercado premia los márgenes'},
+      {time:'hace 38m',tag:'ANALISTAS',tc:'var(--pos)',s:'Barron\u2019s',h:'Dos casas de análisis elevan su precio objetivo sobre '+nm},
+      {time:'hace 1h',tag:'SECTOR',tc:'var(--acc)',s:'WSJ',h:'La demanda del sector impulsa a '+nm+' y a sus competidores directos'},
+      {time:'hace 3h',tag:'CORPORATIVO',tc:'var(--warn)',s:'CNBC',h:nm+' anuncia recompra de acciones y ajustes en su cúpula directiva'},
+      {time:'hace 5h',tag:'TÉCNICO',tc:'var(--dim)',s:'TradingView',h:nm+' rompe resistencia clave con volumen por encima de la media'}
+    ];
+    return items.map(i=>({time:i.time,tag:i.tag,tagCVar:i.tc,source:i.s+' · '+nm,headline:T(i.h)}));
+  }
+
+  // ---------- render ----------
+  renderVals(){
+    const st=this.state;const th=this.theme();
+    const rootStyle=Object.keys(th).map(k=>'--'+k+':'+th[k]).join(';')+';background:var(--bg);color:var(--fg);font-family:\'JetBrains Mono\',ui-monospace,monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13px;';
+
+    const layout=this.props.layout||'focus';
+    const at=st.activeType;
+    const showDash=(layout==='grid'&&at==='welcome');
+    const showFocus=!showDash;
+
+    // header
+    const staleSyms=Object.values(this.quotes).filter(q=>this.isStale(q.sym)).length;
+    const clock=new Date(st.now).toLocaleTimeString('es-ES',{hour12:false});
+    const dateStr=new Date(st.now).toLocaleDateString('es-ES',{day:'2-digit',month:'short'});
+
+    // ticker
+    const tickerSyms=['SPY','QQQ','AAPL','NVDA','TSLA','BTC','ETH','SOL','EURUSD','GOLD'];
+    const ticker=tickerSyms.map(s=>{const c=this.chgPct(s);return{sym:s,price:this.price(s),chg:this.pctStr(c),cVar:this.cVar(c)};});
+
+    // suggestions
+    const sugRaw=this.suggestions(st.input);
+    const sugg=sugRaw.map((s,i)=>({text:s.text,desc:s.desc,bg:i===st.selIdx?'var(--accdim)':'transparent',fg:i===st.selIdx?'var(--acc)':'var(--fg)'}));
+
+    // watch rows
+    const watchRows=st.watch.map(s=>{const c=this.chgPct(s);const stale=this.isStale(s);return{sym:s,name:this.shortName(s),price:this.price(s),chg:(this.chgAbs(s)>0?'+':'')+this.fmtN(this.chgAbs(s),this.priceDp(this.DB[s].cls,this.quotes[s].price)),pct:this.pctStr(c),cVar:this.cVar(c),spark:this.sparkFor(s),status:stale?'CACHÉ '+this.ageStr(s):'● EN VIVO',statusCVar:stale?'var(--warn)':'var(--pos)'};});
+
+    // movers
+    const allSyms=Object.keys(this.DB);
+    const byChg=allSyms.map(s=>({s,c:this.chgPct(s)})).sort((a,b)=>b.c-a.c);
+    const mkMover=(o)=>({sym:o.s,name:this.shortName(o.s),price:this.price(o.s),pct:this.pctStr(o.c),cVar:this.cVar(o.c),spark:this.sparkFor(o.s)});
+    const moversUp=byChg.filter(o=>o.c>0).slice(0,6).map(mkMover);
+    const moversDown=byChg.filter(o=>o.c<0).slice(-6).reverse().map(mkMover);
+    const moversAll=[...moversUp.slice(0,4),...moversDown.slice(0,4)];
+
+    // portfolio
+    let totalMV=0;st.port.forEach(p=>totalMV+=p.qty*this.quotes[p.sym].price);
+    let tCost=0,tPnl=0,tDay=0;
+    const portRows=st.port.map(p=>{const q=this.quotes[p.sym];const dp=this.priceDp(q.cls,q.price);const val=p.qty*q.price;const cost=p.qty*p.avg;const pnl=val-cost;const pnlPct=cost?pnl/cost*100:0;const day=p.qty*(q.price-q.prevClose);const alloc=totalMV?val/totalMV*100:0;tCost+=cost;tPnl+=pnl;tDay+=day;
+      return{sym:p.sym,clsLabel:this.clsLabel(q.cls),qty:this.fmtN(p.qty,p.qty<1?4:0),avg:this.fmtN(p.avg,dp),price:this.fmtN(q.price,dp),val:this.fmtUsd(val),pnl:(pnl>=0?'+':'-')+'$'+this.fmtN(Math.abs(pnl),0),pnlPct:this.pctStr(pnlPct),pnlCVar:this.cVar(pnl),day:(day>=0?'+':'-')+'$'+this.fmtN(Math.abs(day),0),dayCVar:this.cVar(day),alloc:alloc.toFixed(1)+'%'};});
+    const tPnlPct=tCost?tPnl/tCost*100:0;
+    const totals={mv:this.fmtUsd(totalMV),pnl:(tPnl>=0?'+':'-')+'$'+this.fmtN(Math.abs(tPnl),0),pnlPct:this.pctStr(tPnlPct),pnlCVar:this.cVar(tPnl),day:(tDay>=0?'+':'-')+'$'+this.fmtN(Math.abs(tDay),0),dayCVar:this.cVar(tDay)};
+
+    // summary
+    const sym=st.activeSym;const q=this.quotes[sym];const dp=this.priceDp(q.cls,q.price);const c=this.chgPct(sym);
+    const stats=[
+      {label:'Apertura',val:this.fmtN(q.open,dp),cVar:'var(--fg)'},
+      {label:'Cierre ant.',val:this.fmtN(q.prevClose,dp),cVar:'var(--fg)'},
+      {label:'Máx del día',val:this.fmtN(q.dayHigh,dp),cVar:'var(--fg)'},
+      {label:'Mín del día',val:this.fmtN(q.dayLow,dp),cVar:'var(--fg)'},
+      {label:'Máx 52 sem.',val:this.fmtN(q.wkHigh,dp),cVar:'var(--dim)'},
+      {label:'Mín 52 sem.',val:this.fmtN(q.wkLow,dp),cVar:'var(--dim)'},
+      {label:'Volumen',val:this.fmtVol(q.vol),cVar:'var(--fg)'},
+      {label:'Vol. medio',val:this.fmtVol(q.avgVol),cVar:'var(--dim)'}
+    ];
+    if(q.mktCap) stats.push({label:'Cap. mercado',val:this.fmtCap(q.mktCap),cVar:'var(--fg)'});
+    const sum={sym,name:q.name,clsLabel:this.clsLabel(q.cls),price:this.fmtN(q.price,dp),chg:(this.chgAbs(sym)>0?'+':'')+this.fmtN(this.chgAbs(sym),dp),chgPct:this.pctStr(c),cVar:this.cVar(c),arrow:this.arrow(c),stats,stale:this.isStale(sym),age:this.ageStr(sym)};
+
+    // chart header
+    const cc=this.chgPct(sym);
+    const ranges=['1D','5D','1M','3M','1Y'].map(r=>({label:r,on:this.setRange(r),bg:st.chartRange===r?'var(--acc)':'transparent',fg:st.chartRange===r?'var(--bg)':'var(--dim)'}));
+    const modes=[{k:'candles',l:'VELAS'},{k:'line',l:'LÍNEA'}].map(m=>({label:m.l,on:this.setMode(m.k),bg:st.chartMode===m.k?'var(--acc)':'transparent',fg:st.chartMode===m.k?'var(--bg)':'var(--dim)'}));
+
+    // news
+    const newsItems=this.news(sym);
+
+    // help
+    const helpGroups=[
+      {title:'ACTIVOS',items:[
+        {cmd:'[SÍMBOLO]',desc:'Resumen del activo (precio, stats, mini-gráfico)',eg:'AAPL'},
+        {cmd:'[SÍMBOLO] GP',desc:'Gráfico de precio con rangos y velas/línea',eg:'BTC GP'},
+        {cmd:'[SÍMBOLO] NEWS',desc:'Titulares recientes del activo',eg:'AAPL NEWS'},
+        {cmd:'[SÍMBOLO] DES',desc:'Resumen (alias)',eg:'NVDA DES'}
+      ]},
+      {title:'CARTERA',items:[
+        {cmd:'PORT',desc:'Posiciones, P&L, P&L diario y asignación',eg:'PORT'},
+        {cmd:'PORT ADD',desc:'Añadir/editar posiciones · importar/exportar CSV',eg:'PORT ADD'}
+      ]},
+      {title:'MERCADO',items:[
+        {cmd:'WATCH',desc:'Watchlist en vivo con tendencia',eg:'WATCH'},
+        {cmd:'MOVERS',desc:'Mayores subidas y bajadas de la sesión',eg:'MOVERS'}
+      ]},
+      {title:'GENERAL',items:[
+        {cmd:'HELP',desc:'Esta referencia',eg:'HELP'},
+        {cmd:'HOME',desc:'Volver a la pantalla inicial',eg:'HOME'},
+        {cmd:'↑ / ↓ · Tab · Esc',desc:'Historial · autocompletar · limpiar',eg:''}
+      ]}
+    ];
+
+    // welcome
+    const quickCmds=[{cmd:'AAPL',desc:'Resumen de Apple'},{cmd:'BTC GP',desc:'Gráfico de Bitcoin'},{cmd:'AAPL NEWS',desc:'Noticias de Apple'},{cmd:'PORT',desc:'Tu cartera y P&L'},{cmd:'WATCH',desc:'Lista de seguimiento'},{cmd:'MOVERS',desc:'Mayores movimientos'},{cmd:'EURUSD',desc:'Par de divisas'},{cmd:'HELP',desc:'Todos los comandos'}];
+    const snapRows=['SPY','QQQ','BTC','ETH','EURUSD','GOLD'].map(s=>{const cp=this.chgPct(s);return{sym:s,name:this.shortName(s),price:this.price(s),chg:this.pctStr(cp),cVar:this.cVar(cp),spark:this.sparkFor(s)};});
+
+    // form
+    const fr=st.formRows;
+    const formRows=(fr||st.port.map(p=>({sym:p.sym,qty:String(p.qty),avg:String(p.avg)}))).map((r,i)=>({sym:r.sym,qty:r.qty,avg:r.avg,onSym:this.setCell(i,'sym'),onQty:this.setCell(i,'qty'),onAvg:this.setCell(i,'avg'),onDel:this.delRow(i)}));
+
+    return {
+      rootStyle, scanlines:!!this.props.scanlines,
+      clock:clock+' · '+dateStr,
+      connLabel:'EN VIVO', cacheLabel: staleSyms?('· '+staleSyms+' EN CACHÉ'):'', mktLabel:'NYSE ABIERTO · CRIPTO 24/7',
+      ticker,
+      showDash, showFocus,
+      isWelcome:at==='welcome', isSummary:at==='summary', isChart:at==='chart', isPort:at==='port', isWatch:at==='watch', isNews:at==='news', isMovers:at==='movers', isHelp:at==='help', isForm:at==='form', isError:at==='error',
+      // command bar
+      input:st.input, onChange:this.onChange, onKey:this.onKey, inputRef:(el)=>{this._input=el;}, showSug:st.showSug&&sugg.length>0, sugg,
+      hint:'ENTER ejecuta · TAB completa · ↑↓ historial',
+      // dashboard + shared
+      watchRows, moversAll, portRows, totals, gridSym:'SPY · S&P 500', gridRef:(el)=>{this._c.grid=el;},
+      // welcome
+      quickCmds, snapRows,
+      // summary
+      sum, summaryRef:(el)=>{this._c.summary=el;},
+      // chart
+      chartSym:sym, chartName:q.name, chartPrice:this.fmtN(q.price,dp), chartChg:this.pctStr(cc), chartArrow:this.arrow(cc), chartCVar:this.cVar(cc), ranges, modes, chartRef:(el)=>{this._c.chart=el;},
+      // news
+      newsSym:sym, newsName:q.name, newsItems, newsStale:this.isStale(sym), newsAge:this.ageStr(sym),
+      // movers
+      moversUp, moversDown,
+      // help
+      helpGroups,
+      // form
+      formRows, onAddRow:this.addRow, onSaveForm:this.saveForm, onImport:this.importCsv, onExport:this.exportCsv, onCsv:this.setCsv, csv:st.csv,
+      // error
+      errMsg:st.errMsg, errSug:st.errSug
+    };
+  }
+}
+</script>
+</body>
+</html>

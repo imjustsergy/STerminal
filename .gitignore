@@ -1,0 +1,11 @@
+# Claude Code runtime state — no debe versionarse
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/scheduled_tasks.json
+.claude/.ralph-loop.local.md
+.claude/orchestrator-state.local.json
+
+# Artefactos de scripts/preview-server.sh — se generan en la raíz de cada worktree
+.preview.json
+.preview-logs/
+sterminal.db

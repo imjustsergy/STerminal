@@ -1,0 +1,31 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/protect-spec-initial.sh",
+            "statusMessage": "Comprobando protección de spec-initial.md..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/enforce-pnpm.sh",
+            "statusMessage": "Comprobando uso de pnpm..."
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/guard-main-and-deploy.sh",
+            "statusMessage": "Comprobando guardas de main/deploy..."
+          }
+        ]
+      }
+    ]
+  }
+}
