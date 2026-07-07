@@ -487,6 +487,27 @@ Ambos verificados end-to-end contra las APIs reales (no solo con fixtures mockea
 los 7 símbolos de la watchlist por defecto devuelven datos correctos vía `/stream` y
 `POST /command`.
 
+### feat-12 — Comando NEWS (primera feature post-MVP)
+
+Primera iteración del bucle de mejora continua post-MVP (objetivo del owner: 9/10 con
+NEWS, mejor búsqueda de símbolos, dependencias de entrada/salida, correlaciones, datos
+financieros, enlaces a reports).
+
+- **`Registry.get_news(symbol, asset_class=None)`**: mismo patrón de resolución que
+  `get_quote`/`get_history`, cachea con el TTL de histórico diario (300s) — las
+  noticias no son un dato de refresco tan frecuente como una cotización.
+- **`command_router.py`**: `CommandType.NEWS` deja de ser "fuera de alcance" — llama a
+  `registry.get_news` y devuelve `{"type": "NEWS", "symbol", "asset_class", "items"}`.
+  A diferencia de `SUMMARY`/`GRAPH_PRICE` (feat-11), una lista `items: []` **no** se
+  trata como "símbolo no encontrado" — es la respuesta real y documentada para
+  crypto/fx (ningún proveedor gratuito les da noticias).
+- **`NewsPanel.svelte`**: lista de titulares enlazados (`target="_blank"`), fuente y
+  fecha relativa (`lib/format.ts::ageLabel`); estado explícito "sin noticias
+  disponibles" para crypto/fx, no una lista vacía silenciosa.
+- Verificado en vivo contra yfinance real: `AAPL NEWS` devuelve titulares reales,
+  `BTC NEWS` devuelve `200` con `items: []`.
+- **Dependencias:** ninguna nueva — `EquityProvider.get_news` ya existía desde feat-2.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
