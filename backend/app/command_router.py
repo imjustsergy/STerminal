@@ -65,7 +65,7 @@ class SymbolNotFoundError(LookupError):
 _COMMAND_DESCRIPTIONS: dict[CommandType, str] = {
     CommandType.SUMMARY: "Resumen de activo: cotización y clase de activo (equity/crypto/fx).",
     CommandType.GRAPH_PRICE: "Gráfico de precio: histórico OHLC del símbolo.",
-    CommandType.NEWS: "Noticias del activo (fuera de alcance del MVP).",
+    CommandType.NEWS: "Noticias del activo (solo equity tiene datos reales, feat-12).",
     CommandType.PORTFOLIO: "Cartera: posiciones agregadas, P&L y asignación.",
     CommandType.WATCHLIST: "Watchlist en vivo (ver WebSocket /stream, feature 7).",
     CommandType.MOVERS: "Mayores subidas/bajadas del día (fuera de alcance del MVP).",
@@ -73,9 +73,8 @@ _COMMAND_DESCRIPTIONS: dict[CommandType, str] = {
 }
 
 # Mensajes específicos para las ramas reconocidas por el parser pero no ejecutables por
-# este endpoint (ver feat-5 "no incluye").
+# este endpoint (ver feat-5 "no incluye"). NEWS se soporta desde feat-12.
 _UNSUPPORTED_MESSAGES: dict[CommandType, str] = {
-    CommandType.NEWS: "el comando NEWS no está soportado (fuera de alcance del MVP)",
     CommandType.MOVERS: "el comando MOVERS no está soportado (fuera de alcance del MVP)",
     CommandType.WATCHLIST: (
         "el comando WATCH no se sirve por este endpoint; usa el WebSocket /stream "
@@ -179,6 +178,23 @@ def _dispatch_help() -> dict[str, Any]:
     return {"type": CommandType.HELP.value, "commands": _help_entries()}
 
 
+def _dispatch_news(command: Command, registry: Registry) -> dict[str, Any]:
+    """feat-12. A diferencia de SUMMARY/GRAPH_PRICE, una lista vacía **no** es señal de
+    "símbolo no encontrado" — crypto/fx devuelven `[]` de forma documentada (feat-2,
+    ningún proveedor gratuito les da noticias); tratarlo como 400 rompería `BTC NEWS`,
+    que es un caso válido. El único fallo real es una excepción del provider, que ya
+    cae al `except Exception` genérico de `run_command`."""
+    assert command.symbol is not None  # garantizado por parse_command para NEWS
+    asset_class, _internal_symbol = registry.resolve(command.symbol)
+    items = registry.get_news(command.symbol)
+    return {
+        "type": CommandType.NEWS.value,
+        "symbol": command.symbol,
+        "asset_class": asset_class,
+        "items": [dataclasses.asdict(item) for item in items],
+    }
+
+
 def _dispatch(
     command: Command,
     registry: Registry,
@@ -193,7 +209,9 @@ def _dispatch(
         return _dispatch_portfolio(portfolio_engine)
     if command.type == CommandType.HELP:
         return _dispatch_help()
-    # NEWS / WATCHLIST / MOVERS: reconocidos por el parser, no ejecutables aquí.
+    if command.type == CommandType.NEWS:
+        return _dispatch_news(command, registry)
+    # WATCHLIST / MOVERS: reconocidos por el parser, no ejecutables aquí.
     raise UnsupportedCommandError(
         _UNSUPPORTED_MESSAGES.get(
             command.type, f"comando {command.type.value!r} no soportado"

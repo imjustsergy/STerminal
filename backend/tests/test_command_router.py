@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.deps import get_portfolio_engine, get_registry
 from app.main import app
-from app.models import Candle, Quote, SymbolMatch
+from app.models import Candle, NewsItem, Quote, SymbolMatch
 from app.portfolio import Holding, PortfolioSummary
 
 
@@ -31,6 +31,8 @@ class FakeRegistry:
         # sin tocar el Registry real.
         self.quote_price: float = 123.45
         self.history_result: list[Candle] | None = None
+        self.news_calls: list[str] = []
+        self.news_result: list[NewsItem] = []
 
     def resolve(self, symbol: str, asset_class: str | None = None) -> tuple[str, str]:
         if asset_class is not None:
@@ -88,6 +90,10 @@ class FakeRegistry:
         if self.search_error is not None:
             raise self.search_error
         return self.search_results
+
+    def get_news(self, symbol: str, asset_class: str | None = None) -> list[NewsItem]:
+        self.news_calls.append(symbol)
+        return self.news_result
 
 
 class FakePortfolioEngine:
@@ -264,14 +270,43 @@ def test_help_lowercase_still_works(client) -> None:
     assert response.json()["type"] == "HELP"
 
 
-# --- Comandos reconocidos pero no soportados por este endpoint -------------
+# --- NEWS (feat-12) ---------------------------------------------------------
 
 
-def test_news_returns_400(client) -> None:
-    test_client, _, _ = client
+def test_news_equity_returns_items(client) -> None:
+    test_client, registry, _ = client
+    registry.news_result = [
+        NewsItem(
+            title="Apple anuncia resultados",
+            url="https://example.com/apple",
+            source="Example Wire",
+            published_at="2026-07-07T00:00:00Z",
+        )
+    ]
     response = _post(test_client, "AAPL NEWS")
-    assert response.status_code == 400
-    assert "NEWS" in response.json()["detail"]
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "NEWS"
+    assert body["symbol"] == "AAPL"
+    assert body["asset_class"] == "equity"
+    assert len(body["items"]) == 1
+    assert body["items"][0]["title"] == "Apple anuncia resultados"
+    assert registry.news_calls == ["AAPL"]
+
+
+def test_news_crypto_empty_list_is_not_an_error(client) -> None:
+    """feat-12: `[]` es una respuesta 200 válida para crypto/fx, no "símbolo no
+    encontrado" — a diferencia de SUMMARY/GRAPH_PRICE (feat-11)."""
+    test_client, registry, _ = client
+    registry.news_result = []
+    response = _post(test_client, "BTC NEWS")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["asset_class"] == "crypto"
+    assert body["items"] == []
+
+
+# --- Comandos reconocidos pero no soportados por este endpoint -------------
 
 
 def test_movers_returns_400(client) -> None:

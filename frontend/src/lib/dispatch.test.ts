@@ -8,10 +8,10 @@ describe('panelForType', () => {
     expect(panelForType('GRAPH_PRICE')).toBe('graph_price');
     expect(panelForType('PORTFOLIO')).toBe('portfolio');
     expect(panelForType('HELP')).toBe('help');
+    expect(panelForType('NEWS')).toBe('news');
   });
 
   it('cae a "unknown" ante un type no reconocido, sin reventar', () => {
-    expect(panelForType('NEWS')).toBe('unknown');
     expect(panelForType('')).toBe('unknown');
     expect(panelForType('cualquier-cosa')).toBe('unknown');
   });

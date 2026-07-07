@@ -38,6 +38,7 @@ class FakeProvider:
         self.quote_calls: list[str] = []
         self.history_calls: list[tuple[str, str]] = []
         self.search_calls: list[str] = []
+        self.news_calls: list[str] = []
 
     def get_quote(self, symbol: str) -> Quote:
         self.quote_calls.append(symbol)
@@ -68,7 +69,15 @@ class FakeProvider:
         return [SymbolMatch(symbol=query, name=query, asset_class=self.asset_class)]
 
     def get_news(self, symbol: str) -> list[NewsItem]:
-        return []
+        self.news_calls.append(symbol)
+        return [
+            NewsItem(
+                title=f"noticia de {symbol}",
+                url="https://example.com/noticia",
+                source="Example Wire",
+                published_at="2026-07-07T00:00:00Z",
+            )
+        ]
 
 
 def _make_registry(clock: _FakeClock | None = None) -> tuple[Registry, FakeProvider, FakeProvider, FakeProvider]:
@@ -242,6 +251,53 @@ def test_get_history_defaults_unknown_resolution_and_normalizes_cache_key() -> N
     registry.get_history("AAPL", "1D")
     # "bogus" normaliza a "1D" (app.providers._util.normalize_resolution); misma clave.
     assert equity.history_calls == [("AAPL", "1D")]
+
+
+# --- get_news (feat-12) ---
+
+
+def test_get_news_routes_to_correct_provider() -> None:
+    registry, equity, crypto, _ = _make_registry()
+    registry.get_news("AAPL")
+    assert equity.news_calls == ["AAPL"]
+    assert crypto.news_calls == []
+
+
+def test_get_news_translates_crypto_symbol() -> None:
+    registry, _, crypto, _ = _make_registry()
+    registry.get_news("BTC")
+    assert crypto.news_calls == ["bitcoin"]
+
+
+def test_get_news_returns_provider_items() -> None:
+    registry, _, _, _ = _make_registry()
+    items = registry.get_news("AAPL")
+    assert len(items) == 1
+    assert items[0].title == "noticia de AAPL"
+
+
+def test_get_news_is_served_from_cache_within_ttl() -> None:
+    clock = _FakeClock()
+    registry, equity, _, _ = _make_registry(clock)
+    registry.get_news("AAPL")
+    registry.get_news("AAPL")
+    assert equity.news_calls == ["AAPL"]
+
+
+def test_get_news_refetches_after_ttl_expires() -> None:
+    clock = _FakeClock()
+    registry, equity, _, _ = _make_registry(clock)
+    registry.get_news("AAPL")
+    clock.advance(HISTORY_DAILY_TTL_SECONDS + 1)
+    registry.get_news("AAPL")
+    assert equity.news_calls == ["AAPL", "AAPL"]
+
+
+def test_get_news_respects_asset_class_hint() -> None:
+    registry, equity, crypto, _ = _make_registry()
+    registry.get_news("BTC", asset_class="equity")
+    assert equity.news_calls == ["BTC"]
+    assert crypto.news_calls == []
 
 
 # --- Desambiguación con hint también en get_quote/get_history ---

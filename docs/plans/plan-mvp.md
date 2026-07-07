@@ -42,8 +42,22 @@ no bloquean el uso real del terminal. Se añadirán como features post-MVP norma
 
 **Estados posibles:** `pending` · `in-progress` · `pr-open` · `blocked` (con nota) · `merged`.
 
-## Fuera de alcance del MVP (backlog post-MVP)
+## Post-MVP — bucle de mejora continua
 
-- `NEWS` (noticias por activo) y `MOVERS` (mayores subidas/bajadas del día).
+MVP completo (11/11). Objetivo del owner: llevar el producto a un 9/10 con noticias,
+mejor búsqueda de símbolos, dependencias de entrada/salida entre símbolos,
+correlaciones, datos financieros, enlaces a reports, y lo que surja. Ciclo por feature:
+spec → implementación (commits recurrentes) → test → si pasa, merge `--no-ff` directo a
+`main` (sin PR, sin worktree de bookkeeping — decisión explícita del owner para este
+bucle) → scoring del producto → siguiente feature.
+
+| N | Título | Estado | Rama | Score tras mergear |
+|---|---|---|---|---|
+| 12 | Comando NEWS (noticias por activo, solo equity vía yfinance) | merged | feature-12-news | ver `docs/sys/scoring.md` |
+
+## Fuera de alcance (ni del MVP ni del bucle post-MVP, salvo que se decida lo contrario)
+
+- `MOVERS` (mayores subidas/bajadas del día) — no pedido explícitamente en el objetivo
+  del bucle post-MVP; añadir como feature nueva si se decide.
 - Todo lo ya listado como fuera de alcance en `docs/sys/spec.md` sección 10 (trading
   real, brokers, alertas push, multiusuario, autenticación).
