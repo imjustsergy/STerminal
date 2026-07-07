@@ -1,24 +1,23 @@
-"""FxProvider — forex y materias primas vía exchangerate.host (HTTP directo).
+"""FxProvider — forex vía frankfurter.dev (HTTP directo, tasas del BCE).
 
-Ver `docs/sys/features/feat-2-providers-base.md` y
-`docs/plans/plan-2-providers-base.md`. El `symbol` esperado es un par de 6 caracteres
-`BASECOTIZADA` (ej. `"EURUSD"` = base EUR, cotizada USD), igual que en `spec.md`
-sección 4.
+Ver `docs/sys/features/feat-2-providers-base.md` y `docs/plans/plan-2-providers-base.md`.
+El `symbol` esperado es un par de 6 caracteres `BASECOTIZADA` (ej. `"EURUSD"` = base EUR,
+cotizada USD), igual que en `spec.md` sección 4.
 
-**Nota (descubierta durante esta feature):** `api.exchangerate.host` ahora exige una
-API key (`access_key`) — el proveedor pasó a operar bajo el paraguas de apilayer desde
-que se escribió la spec original. Este provider acepta `api_key` por constructor o vía
-la variable de entorno `EXCHANGERATE_HOST_API_KEY`; sin ella, las peticiones a la API
-real fallarán (los tests no se ven afectados, mockean el transporte HTTP). Pendiente de
-que el owner obtenga una key gratuita antes de usar este provider en producción — ver
-`docs/plans/plan-2-providers-base.md`.
+**Migrado desde exchangerate.host (detectado como roto en producción probando `WATCH`
+en vivo, ver historial de feat-2/feat-11):** ese proveedor pasó a exigir API key de pago
+(`access_key`) bajo el paraguas de apilayer. `frankfurter.dev` (antes `frankfurter.app`,
+que ahora solo redirige 301 ahí — se usa el dominio final directamente para no pagar el
+salto de cada request) es una alternativa genuinamente gratuita y sin key (tasas
+oficiales del Banco Central Europeo, actualizadas a diario laborable), cubre las 20
+divisas de `registry._FX_CURRENCY_CODES`. Sin materias primas (oro/plata) — fuera de
+alcance del MVP de todos modos.
 
-`get_news` devuelve siempre `[]`: exchangerate.host no expone noticias.
+`get_news` devuelve siempre `[]`: frankfurter.dev no expone noticias.
 """
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -26,9 +25,9 @@ import httpx
 from app.models import Candle, NewsItem, Quote, SymbolMatch
 from app.providers._util import normalize_resolution
 
-_BASE_URL = "https://api.exchangerate.host"
+_BASE_URL = "https://api.frankfurter.dev/v1"
 
-# resolution normalizada -> nº de días de rango para `/timeseries`.
+# resolution normalizada -> nº de días de rango para el timeseries `/{start}..{end}`.
 _RESOLUTION_TO_DAYS: dict[str, int] = {
     "1D": 2,
     "1W": 7,
@@ -38,21 +37,10 @@ _RESOLUTION_TO_DAYS: dict[str, int] = {
 
 
 class FxProvider:
-    """Provider de forex/materias primas. Cumple el Protocol `Provider`."""
+    """Provider de forex. Cumple el Protocol `Provider`."""
 
-    def __init__(
-        self,
-        client: httpx.Client | None = None,
-        api_key: str | None = None,
-    ) -> None:
+    def __init__(self, client: httpx.Client | None = None) -> None:
         self._client = client or httpx.Client(base_url=_BASE_URL, timeout=10.0)
-        self._api_key = api_key or os.environ.get("EXCHANGERATE_HOST_API_KEY")
-
-    def _params(self, **kwargs: str) -> dict[str, str]:
-        params = dict(kwargs)
-        if self._api_key:
-            params["access_key"] = self._api_key
-        return params
 
     @staticmethod
     def _split(symbol: str) -> tuple[str, str]:
@@ -62,15 +50,13 @@ class FxProvider:
     def get_quote(self, symbol: str) -> Quote:
         base, quote_ccy = self._split(symbol)
 
-        latest = self._client.get("/latest", params=self._params(base=base, symbols=quote_ccy))
+        latest = self._client.get("/latest", params={"from": base, "to": quote_ccy})
         latest.raise_for_status()
         latest_data = latest.json()
         rate = float(latest_data["rates"][quote_ccy])
 
         yesterday = (datetime.now(tz=timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
-        previous = self._client.get(
-            f"/{yesterday}", params=self._params(base=base, symbols=quote_ccy)
-        )
+        previous = self._client.get(f"/{yesterday}", params={"from": base, "to": quote_ccy})
         previous.raise_for_status()
         previous_rate = float(previous.json()["rates"][quote_ccy])
 
@@ -92,13 +78,8 @@ class FxProvider:
         end_date = datetime.now(tz=timezone.utc).date()
         start_date = end_date - timedelta(days=days)
         response = self._client.get(
-            "/timeseries",
-            params=self._params(
-                start_date=start_date.isoformat(),
-                end_date=end_date.isoformat(),
-                base=base,
-                symbols=quote_ccy,
-            ),
+            f"/{start_date.isoformat()}..{end_date.isoformat()}",
+            params={"from": base, "to": quote_ccy},
         )
         response.raise_for_status()
         rates = response.json().get("rates", {})
@@ -112,22 +93,21 @@ class FxProvider:
                     high=rate,
                     low=rate,
                     close=rate,
-                    # exchangerate.host da un único rate/día, sin OHLC intradía.
+                    # frankfurter.app da un único rate/día, sin OHLC intradía.
                     volume=0.0,
                 )
             )
         return candles
 
     def search(self, query: str) -> list[SymbolMatch]:
-        response = self._client.get("/symbols", params=self._params())
+        response = self._client.get("/currencies")
         response.raise_for_status()
-        symbols = response.json().get("symbols", {})
+        currencies: dict[str, str] = response.json()
         query_lower = query.strip().lower()
         matches: list[SymbolMatch] = []
-        for code, meta in symbols.items():
-            description = meta.get("description", code)
-            if query_lower in code.lower() or query_lower in description.lower():
-                matches.append(SymbolMatch(symbol=code, name=description, asset_class="fx"))
+        for code, name in currencies.items():
+            if query_lower in code.lower() or query_lower in name.lower():
+                matches.append(SymbolMatch(symbol=code, name=name, asset_class="fx"))
         return matches
 
     def get_news(self, symbol: str) -> list[NewsItem]:

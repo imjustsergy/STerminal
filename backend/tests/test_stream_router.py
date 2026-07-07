@@ -20,18 +20,25 @@ _FAST_INTERVAL = 0.05
 
 class FakeRegistry:
     """Doble mínimo de `Registry`: cotizaciones configurables por símbolo, con contador
-    de llamadas para verificar que el loop realmente vuelve a pedir datos."""
+    de llamadas para verificar que el loop realmente vuelve a pedir datos.
+
+    `translations` simula lo que hace el `Registry` real para cripto (`"BTC"` ->
+    `"bitcoin"`, ver `registry.py`): el `Quote.symbol` devuelto puede ser distinto del
+    símbolo que el cliente pidió. Regresión de un bug real (ver
+    `stream_router._quote_payload`): si el router reenviara ese `Quote.symbol` interno
+    tal cual, el frontend (que indexa por el símbolo pedido) nunca lo encontraría."""
 
     def __init__(self) -> None:
         self.quote_calls: list[str] = []
         self.broken_symbols: set[str] = set()
+        self.translations: dict[str, str] = {}
 
     def get_quote(self, symbol: str) -> Quote:
         self.quote_calls.append(symbol)
         if symbol in self.broken_symbols:
             raise LookupError(f"símbolo roto: {symbol}")
         return Quote(
-            symbol=symbol,
+            symbol=self.translations.get(symbol, symbol),
             price=100.0 + self.quote_calls.count(symbol),
             currency="USD",
             change=1.0,
@@ -110,6 +117,23 @@ def test_broken_symbol_reports_error_without_dropping_connection() -> None:
             quotes_by_symbol = {q["symbol"]: q for q in message["quotes"]}
             assert quotes_by_symbol["AAPL"]["price"] == 101.0
             assert "error" in quotes_by_symbol["ZZZZ"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_translated_symbol_is_reported_as_the_requested_symbol() -> None:
+    """Regresión: `Registry.get_quote("BTC")` devuelve `Quote(symbol="bitcoin", ...)`
+    (traducción interna a id de CoinGecko). El push debe llevar `"BTC"` — el símbolo que
+    el cliente pidió — no `"bitcoin"`, o `WatchlistPanel.svelte` (que indexa por el
+    símbolo pedido) nunca actualiza esa fila."""
+    registry = FakeRegistry()
+    registry.translations["BTC"] = "bitcoin"
+    client = _client_with(registry, interval=5.0)
+    try:
+        with client.websocket_connect("/stream") as ws:
+            ws.send_json({"subscribe": ["BTC"]})
+            message = ws.receive_json()
+            assert message["quotes"][0]["symbol"] == "BTC"
     finally:
         app.dependency_overrides.clear()
 

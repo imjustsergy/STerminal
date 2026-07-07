@@ -1,9 +1,5 @@
 {
-  "motd": {
-    "msg": "If you or your company use this project or like what we doing, please consider backing it. Info: https://exchangerate.host/#/donate",
-    "url": "https://exchangerate.host/#/donate"
-  },
-  "success": true,
+  "amount": 1.0,
   "base": "EUR",
   "date": "2026-07-07",
   "rates": {

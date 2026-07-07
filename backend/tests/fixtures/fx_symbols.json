@@ -1,11 +1,7 @@
 {
-  "success": true,
-  "symbols": {
-    "USD": { "description": "United States Dollar", "code": "USD" },
-    "EUR": { "description": "Euro", "code": "EUR" },
-    "GBP": { "description": "British Pound Sterling", "code": "GBP" },
-    "JPY": { "description": "Japanese Yen", "code": "JPY" },
-    "XAU": { "description": "Gold Ounce", "code": "XAU" },
-    "XAG": { "description": "Silver Ounce", "code": "XAG" }
-  }
+  "USD": "United States Dollar",
+  "EUR": "Euro",
+  "GBP": "British Pound",
+  "JPY": "Japanese Yen",
+  "CHF": "Swiss Franc"
 }

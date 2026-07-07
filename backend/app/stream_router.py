@@ -60,12 +60,21 @@ def _extract_symbols(message: Any) -> list[str]:
 
 def _quote_payload(registry: Registry, symbol: str) -> dict[str, Any]:
     """Cotización de `symbol` para el push, o `{"symbol", "error"}` si el `Registry`/
-    provider falla — un símbolo roto no debe tumbar la conexión ni el resto del push."""
+    provider falla — un símbolo roto no debe tumbar la conexión ni el resto del push.
+
+    Bug real corregido: `Quote.symbol` es el símbolo INTERNO del provider (ej. `"BTC"`
+    se traduce a `"bitcoin"` para `CryptoProvider`, ver `registry.py`), no el que el
+    cliente pidió en `subscribe`. Si se devolviera tal cual, el frontend
+    (`WatchlistPanel.svelte`, que indexa las cotizaciones por el símbolo original) nunca
+    encontraría la entrada para cripto y esa fila se quedaría en "esperando…" para
+    siempre. Se sobreescribe con el `symbol` original antes de serializar."""
     try:
         quote = registry.get_quote(symbol)
     except Exception as exc:  # noqa: BLE001 - ver justificación en plan-7-websocket-stream.md
         return {"symbol": symbol, "error": str(exc)}
-    return dataclasses.asdict(quote)
+    payload = dataclasses.asdict(quote)
+    payload["symbol"] = symbol
+    return payload
 
 
 @router.websocket("/stream")

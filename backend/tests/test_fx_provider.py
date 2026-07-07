@@ -1,7 +1,8 @@
-"""Tests de FxProvider — `httpx.MockTransport` sobre fixtures de exchangerate.host.
+"""Tests de FxProvider — `httpx.MockTransport` sobre fixtures de frankfurter.app.
 
-Ver docs/plans/plan-2-providers-base.md, tarea 4. Ningún test golpea la red real ni
-depende de tener una `api_key` real configurada.
+Ver docs/plans/plan-2-providers-base.md tarea 4 y el historial de feat-11 (migración
+desde exchangerate.host, que pasó a exigir API key de pago). Ningún test golpea la red
+real.
 """
 
 from __future__ import annotations
@@ -17,16 +18,18 @@ from tests.httpx_mock import mock_transport
 def _make_provider() -> FxProvider:
     transport = mock_transport(
         {
-            "/latest": "fx_latest_eurusd.json",
-            "/timeseries": "fx_timeseries_eurusd.json",
-            "/symbols": "fx_symbols.json",
+            "currencies": "fx_symbols.json",
+            "latest": "fx_latest_eurusd.json",
+            # El timeseries usa un path de rango de fechas "/START..END" — ".." es la
+            # subcadena que lo distingue de la petición de un único día anterior.
+            "..": "fx_timeseries_eurusd.json",
         },
-        # Fallback: la petición al día anterior usa un path dinámico (`/YYYY-MM-DD`)
+        # Fallback: la petición al día anterior usa un path dinámico ("/YYYY-MM-DD")
         # que depende de la fecha real de ejecución del test.
         default="fx_previous_eurusd.json",
     )
-    client = httpx.Client(base_url="https://api.exchangerate.host", transport=transport)
-    return FxProvider(client=client, api_key="test-key")
+    client = httpx.Client(base_url="https://api.frankfurter.dev/v1", transport=transport)
+    return FxProvider(client=client)
 
 
 def test_fx_provider_implements_protocol() -> None:
@@ -62,10 +65,10 @@ def test_get_history_unknown_resolution_defaults_to_1d() -> None:
 
 def test_search_filters_by_query() -> None:
     provider = _make_provider()
-    matches = provider.search("gold")
+    matches = provider.search("franc")
     assert isinstance(matches, list)
     assert all(isinstance(m, SymbolMatch) for m in matches)
-    assert matches == [SymbolMatch(symbol="XAU", name="Gold Ounce", asset_class="fx")]
+    assert matches == [SymbolMatch(symbol="CHF", name="Swiss Franc", asset_class="fx")]
 
 
 def test_search_matches_by_code() -> None:
@@ -79,16 +82,3 @@ def test_get_news_is_empty_list() -> None:
     news = provider.get_news("EURUSD")
     assert news == []
     assert all(isinstance(n, NewsItem) for n in news)
-
-
-def test_no_api_key_omits_access_key_param() -> None:
-    captured = {}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured["has_key"] = "access_key" in request.url.params
-        return httpx.Response(200, json={"success": True, "base": "EUR", "date": "2026-07-07", "rates": {"USD": 1.0}})
-
-    client = httpx.Client(base_url="https://api.exchangerate.host", transport=httpx.MockTransport(handler))
-    provider = FxProvider(client=client, api_key=None)
-    provider.get_quote("EURUSD")
-    assert captured["has_key"] is False

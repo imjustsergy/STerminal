@@ -17,8 +17,8 @@
     [`docs/sys/features/feat-1-backend-skeleton.md`](features/feat-1-backend-skeleton.md)
     y [`docs/plans/plan-1-backend-skeleton.md`](../plans/plan-1-backend-skeleton.md).
   - feat-2 — Providers base: `EquityProvider` (yfinance), `CryptoProvider` (CoinGecko),
-    `FxProvider` (exchangerate.host), los tres cumpliendo el `Protocol Provider` de
-    feat-1. Ver
+    `FxProvider` (frankfurter.dev, migrado desde exchangerate.host — ver corrección de
+    `WATCH` más abajo), los tres cumpliendo el `Protocol Provider` de feat-1. Ver
     [`docs/sys/features/feat-2-providers-base.md`](features/feat-2-providers-base.md)
     y [`docs/plans/plan-2-providers-base.md`](../plans/plan-2-providers-base.md).
   - feat-3 — Registry (`registry.py`, enruta símbolo→provider y desambigua clases de
@@ -107,7 +107,7 @@ flowchart TD
     subgraph Ext["APIs gratuitas externas"]
         YF[yfinance<br/>acciones · forex]
         CG[CoinGecko<br/>cripto]
-        FX[exchangerate.host<br/>divisas]
+        FX[frankfurter.dev<br/>divisas]
     end
 
     CB -- "HTTP / WebSocket (JSON)" --> ROUTER
@@ -128,7 +128,7 @@ flowchart TD
 
 | Módulo | Responsabilidad |
 |---|---|
-| `providers/` | Un módulo por fuente, todos con interfaz común. `EquityProvider` (yfinance), `CryptoProvider` (CoinGecko), `FxProvider` (exchangerate.host). |
+| `providers/` | Un módulo por fuente, todos con interfaz común. `EquityProvider` (yfinance), `CryptoProvider` (CoinGecko), `FxProvider` (frankfurter.dev). |
 | `registry.py` | Enruta el símbolo a su provider según clase de activo; desambigua choques. |
 | `cache.py` | Caché en memoria con TTL para respetar límites de las APIs gratuitas. Clave por símbolo + resolución. |
 | `portfolio.py` | Lee posiciones de SQLite, cruza con precios en vivo, calcula P&L, coste medio, % asignación, P&L diario. Import/export CSV. |
@@ -205,12 +205,14 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
   **sin volumen** en el tier gratuito (`Candle.volume` queda a `0.0`). `get_news`
   devuelve `[]` de forma documentada — CoinGecko no expone noticias por activo en su
   API pública gratuita.
-- **`FxProvider`** (`backend/app/providers/fx.py`): forex/materias primas vía la API
-  pública de exchangerate.host (HTTP directo con `httpx.Client` inyectable). Símbolo de
-  entrada: par de 6 caracteres `BASECOTIZADA` (ej. `EURUSD` = base EUR, cotizada USD).
-  `get_history` da un único rate por día (`/timeseries`), **sin OHLC intradía** — cada
-  `Candle` se construye con `open=high=low=close=rate` del día y `volume=0.0`.
-  `get_news` devuelve `[]` de forma documentada. Requiere API key — ver sección 11.
+- **`FxProvider`** (`backend/app/providers/fx.py`): forex vía la API pública de
+  **frankfurter.dev** (tasas del BCE, gratuita, sin API key — migrada desde
+  exchangerate.host, ver corrección en la sección de `WATCH`/feat-11 más abajo). Símbolo
+  de entrada: par de 6 caracteres `BASECOTIZADA` (ej. `EURUSD` = base EUR, cotizada USD).
+  `get_history` da un único rate por día (`/{start}..{end}`), **sin OHLC intradía** —
+  cada `Candle` se construye con `open=high=low=close=rate` del día y `volume=0.0`. Sin
+  materias primas (oro/plata) — fuera de alcance del MVP de todos modos. `get_news`
+  devuelve `[]` de forma documentada.
 - **Dependencias runtime nuevas:** `yfinance` y `httpx` en `[project].dependencies` de
   `backend/pyproject.toml` (`httpx` ya estaba como dependencia de test, ahora también de
   runtime).
@@ -458,6 +460,33 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
 - **Con esta feature, las 11 features del MVP quedan implementadas** (ver tabla de
   estado en [`docs/plans/plan-mvp.md`](../plans/plan-mvp.md)).
 
+### Corrección post-MVP: `WATCH` con símbolos no-equity (2026-07-08)
+
+Detectado probando `WATCH` en vivo con la watchlist por defecto (`AAPL`/`NVDA`/`TSLA`
+equity, `BTC`/`ETH`/`SOL` crypto, `EURUSD` fx): **todo lo que no era acción fallaba o se
+quedaba colgado**. Dos bugs distintos, no relacionados entre sí:
+
+- **Bug de identidad de símbolo (`stream_router.py`):** `Quote.symbol` es el símbolo
+  INTERNO del provider (`registry.py` traduce `"BTC"` → `"bitcoin"` para
+  `CryptoProvider`), no el que el cliente pidió en `subscribe`. El push del WebSocket
+  devolvía ese símbolo interno tal cual — `WatchlistPanel.svelte` indexa las
+  cotizaciones por el símbolo original, así que nunca encontraba la entrada para cripto
+  y esas filas se quedaban en "esperando…" para siempre (equity no se veía afectado
+  porque `registry.py` no traduce sus símbolos). Arreglado: `_quote_payload` sobreescribe
+  `symbol` con el original antes de serializar. Test de regresión añadido
+  (`test_translated_symbol_is_reported_as_the_requested_symbol`).
+- **`exchangerate.host` roto de verdad:** confirmado en producción (no solo detectado en
+  fixtures) que exige API key de pago. `FxProvider` se reescribió sobre
+  **`frankfurter.dev`** (tasas oficiales del BCE, gratis, sin key, cubre las 20 divisas
+  de `registry._FX_CURRENCY_CODES`). Nota: el dominio público es `frankfurter.app`, que
+  ahora solo redirige (301) a `frankfurter.dev/v1` — se apunta directo ahí porque
+  `httpx.Client` no sigue redirects por defecto. Fixtures y tests de
+  `test_fx_provider.py` actualizados al nuevo formato de respuesta.
+
+Ambos verificados end-to-end contra las APIs reales (no solo con fixtures mockeadas):
+los 7 símbolos de la watchlist por defecto devuelven datos correctos vía `/stream` y
+`POST /command`.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
@@ -599,12 +628,6 @@ exchange más adelante **sin reescribir** el núcleo.
 - Confirmar proveedor de noticias gratuito (yfinance expone algo; evaluar alternativa).
 - Intervalo `N` de refresco del WebSocket (arrancar en ~15 s, configurable en `settings`).
 - Framework de frontend definitivo (Svelte recomendado por peso; confirmar en el plan).
-- **`exchangerate.host` ahora exige API key (detectado en feat-2):** el endpoint público
-  devuelve `missing_access_key` sin una clave de acceso — el proveedor cambió de
-  modelo desde que se escribió `spec-initial.md` y ahora opera bajo el paraguas de
-  apilayer. `FxProvider` acepta `api_key: str | None = None` por constructor (o lee
-  `EXCHANGERATE_HOST_API_KEY` del entorno) y lo añade como query param `access_key`.
-  Los tests no dependen de esto (mockean el transporte HTTP), pero **antes de que
-  `FxProvider` funcione contra la API real en producción, el owner necesita conseguir
-  una key gratuita de exchangerate.host/apilayer** y configurar la variable de entorno
-  en el despliegue de la Raspberry Pi.
+- ~~`exchangerate.host` ahora exige API key~~ — **resuelto** (detectado en feat-2,
+  corregido probando `WATCH` en vivo, ver más abajo): `FxProvider` se migró a
+  `frankfurter.dev`, gratuito y sin key. Ya no es una pregunta abierta.
