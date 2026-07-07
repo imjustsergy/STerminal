@@ -1,0 +1,30 @@
+[
+  {
+    "symbol": "AAPL",
+    "shortname": "Apple Inc.",
+    "longname": "Apple Inc.",
+    "quoteType": "EQUITY",
+    "exchange": "NMS"
+  },
+  {
+    "symbol": "APLE",
+    "shortname": "Apple Hospitality REIT, Inc.",
+    "longname": "Apple Hospitality REIT, Inc.",
+    "quoteType": "EQUITY",
+    "exchange": "NYQ"
+  },
+  {
+    "symbol": "AAPL.SW",
+    "shortname": "APPLE INC",
+    "longname": null,
+    "quoteType": "EQUITY",
+    "exchange": "EBS"
+  },
+  {
+    "symbol": "2788.T",
+    "shortname": "APPLE INTERNATIONAL CO LTD",
+    "longname": "Apple International Co., Ltd.",
+    "quoteType": "EQUITY",
+    "exchange": "JPX"
+  }
+]

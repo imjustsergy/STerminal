@@ -1,0 +1,18 @@
+{
+  "motd": {
+    "msg": "If you or your company use this project or like what we doing, please consider backing it. Info: https://exchangerate.host/#/donate",
+    "url": "https://exchangerate.host/#/donate"
+  },
+  "success": true,
+  "timeseries": true,
+  "start_date": "2026-07-03",
+  "end_date": "2026-07-07",
+  "base": "EUR",
+  "rates": {
+    "2026-07-03": { "USD": 1.079 },
+    "2026-07-04": { "USD": 1.081 },
+    "2026-07-05": { "USD": 1.078 },
+    "2026-07-06": { "USD": 1.08 },
+    "2026-07-07": { "USD": 1.085 }
+  }
+}

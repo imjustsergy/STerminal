@@ -1,0 +1,14 @@
+{
+  "symbol": "AAPL",
+  "shortName": "Apple Inc.",
+  "longName": "Apple Inc.",
+  "currency": "USD",
+  "regularMarketPrice": 312.19,
+  "currentPrice": 312.19,
+  "regularMarketChange": -0.47000122,
+  "regularMarketChangePercent": -0.15032342,
+  "regularMarketTime": 1783452292,
+  "quoteType": "EQUITY",
+  "exchange": "NMS",
+  "previousClose": 312.66
+}

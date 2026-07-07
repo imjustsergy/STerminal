@@ -16,6 +16,11 @@
     `settings`) + interfaz `Provider` (`Protocol`). Ver
     [`docs/sys/features/feat-1-backend-skeleton.md`](features/feat-1-backend-skeleton.md)
     y [`docs/plans/plan-1-backend-skeleton.md`](../plans/plan-1-backend-skeleton.md).
+  - feat-2 — Providers base: `EquityProvider` (yfinance), `CryptoProvider` (CoinGecko),
+    `FxProvider` (exchangerate.host), los tres cumpliendo el `Protocol Provider` de
+    feat-1. Ver
+    [`docs/sys/features/feat-2-providers-base.md`](features/feat-2-providers-base.md)
+    y [`docs/plans/plan-2-providers-base.md`](../plans/plan-2-providers-base.md).
 - **Fecha:** 2026-07-07
 - **Stack elegida:** FastAPI (Python) + frontend Svelte + TradingView lightweight-charts + SQLite.
 - **Diseño visual/UX (definitivo):** ver [`init-specs/DESIGN.md`](init-specs/DESIGN.md) —
@@ -147,6 +152,33 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
   (`test_app.py`, `test_db.py`, `test_provider_protocol.py`), ejecutado desde `backend/`.
   Sin llamadas a red real en los tests (aplica también a providers futuros, ver sección
   9).
+
+### Providers implementados (desde feat-2)
+
+- **`EquityProvider`** (`backend/app/providers/equity.py`): acciones/ETFs vía
+  `yfinance`. Símbolo de entrada: ticker de Yahoo Finance tal cual (`AAPL`, `MSFT`,
+  ...). `get_history` devuelve OHLCV completo, sin limitaciones conocidas.
+- **`CryptoProvider`** (`backend/app/providers/crypto.py`): cripto vía la API pública de
+  CoinGecko (HTTP directo con `httpx.Client` inyectable). Símbolo de entrada: **id de
+  CoinGecko** (`bitcoin`, `ethereum`, ...), no el ticker corto (`BTC`) — mapear
+  ticker→id es responsabilidad de `registry.py` (feature 3); mientras tanto, `search()`
+  permite resolverlo a mano. `get_history` usa `/coins/{id}/ohlc` (OHLC real) pero
+  **sin volumen** en el tier gratuito (`Candle.volume` queda a `0.0`). `get_news`
+  devuelve `[]` de forma documentada — CoinGecko no expone noticias por activo en su
+  API pública gratuita.
+- **`FxProvider`** (`backend/app/providers/fx.py`): forex/materias primas vía la API
+  pública de exchangerate.host (HTTP directo con `httpx.Client` inyectable). Símbolo de
+  entrada: par de 6 caracteres `BASECOTIZADA` (ej. `EURUSD` = base EUR, cotizada USD).
+  `get_history` da un único rate por día (`/timeseries`), **sin OHLC intradía** — cada
+  `Candle` se construye con `open=high=low=close=rate` del día y `volume=0.0`.
+  `get_news` devuelve `[]` de forma documentada. Requiere API key — ver sección 11.
+- **Dependencias runtime nuevas:** `yfinance` y `httpx` en `[project].dependencies` de
+  `backend/pyproject.toml` (`httpx` ya estaba como dependencia de test, ahora también de
+  runtime).
+- **Tests:** fixtures HTTP grabadas en `backend/tests/fixtures/`; `CryptoProvider`/
+  `FxProvider` mockean el transporte con `httpx.MockTransport`, `EquityProvider` usa
+  factories inyectables (`ticker_factory`, `search_factory`) porque `yfinance` no
+  expone un cliente HTTP interceptable de forma estable entre versiones.
 
 ---
 
@@ -289,3 +321,12 @@ exchange más adelante **sin reescribir** el núcleo.
 - Confirmar proveedor de noticias gratuito (yfinance expone algo; evaluar alternativa).
 - Intervalo `N` de refresco del WebSocket (arrancar en ~15 s, configurable en `settings`).
 - Framework de frontend definitivo (Svelte recomendado por peso; confirmar en el plan).
+- **`exchangerate.host` ahora exige API key (detectado en feat-2):** el endpoint público
+  devuelve `missing_access_key` sin una clave de acceso — el proveedor cambió de
+  modelo desde que se escribió `spec-initial.md` y ahora opera bajo el paraguas de
+  apilayer. `FxProvider` acepta `api_key: str | None = None` por constructor (o lee
+  `EXCHANGERATE_HOST_API_KEY` del entorno) y lo añade como query param `access_key`.
+  Los tests no dependen de esto (mockean el transporte HTTP), pero **antes de que
+  `FxProvider` funcione contra la API real en producción, el owner necesita conseguir
+  una key gratuita de exchangerate.host/apilayer** y configurar la variable de entorno
+  en el despliegue de la Raspberry Pi.

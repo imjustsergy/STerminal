@@ -1,0 +1,41 @@
+[
+  {
+    "id": "6b7d1b54-074e-433c-b064-a9f8ce8c9eaf",
+    "content": {
+      "title": "US Chief Design Officer Joe Gebbia breaks down the website creation for Trump Accounts",
+      "pubDate": "2026-07-07T15:25:32Z",
+      "provider": {
+        "displayName": "Yahoo Finance Video"
+      },
+      "canonicalUrl": {
+        "url": "https://finance.yahoo.com/video/us-chief-design-officer-joe-gebbia-breaks-down-the-website-creation-for-trump-accounts-152532047.html"
+      }
+    }
+  },
+  {
+    "id": "6c1d6f48-260f-4aec-85a5-d1d9e4c24fd4",
+    "content": {
+      "title": "Stock market today: Dow posts record, S&P 500 and Nasdaq rally on revived AI optimism",
+      "pubDate": "2026-07-05T22:56:45Z",
+      "provider": {
+        "displayName": "Yahoo Finance"
+      },
+      "canonicalUrl": {
+        "url": "https://finance.yahoo.com/markets/stocks/live/stock-market-today-monday-july-6-nasdaq-sp-rise-225645420.html"
+      }
+    }
+  },
+  {
+    "id": "ac2ffd32-d418-308c-aaf4-220184020d38",
+    "content": {
+      "title": "Ondo launches the first platform to trade U.S. stock perps with tokenized shares as collateral",
+      "pubDate": "2026-07-07T18:50:56Z",
+      "provider": {
+        "displayName": "TheStreet"
+      },
+      "canonicalUrl": {
+        "url": "https://www.thestreet.com/crypto/markets/ondo-launches-the-first-platform-to-trade-us-stock-perps-with-tokenized-shares-as-collateral"
+      }
+    }
+  }
+]

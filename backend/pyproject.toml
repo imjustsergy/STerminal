@@ -10,12 +10,13 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi",
     "uvicorn",
+    "yfinance",
+    "httpx",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "httpx",
 ]
 
 [tool.setuptools.packages.find]
