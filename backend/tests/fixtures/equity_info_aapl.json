@@ -10,5 +10,14 @@
   "regularMarketTime": 1783452292,
   "quoteType": "EQUITY",
   "exchange": "NMS",
-  "previousClose": 312.66
+  "previousClose": 312.66,
+  "marketCap": 4562774130688,
+  "trailingPE": 37.655758,
+  "trailingEps": 8.25,
+  "dividendYield": 0.35,
+  "fiftyTwoWeekHigh": 317.4,
+  "fiftyTwoWeekLow": 201.5,
+  "beta": 1.097,
+  "sector": "Technology",
+  "industry": "Consumer Electronics"
 }

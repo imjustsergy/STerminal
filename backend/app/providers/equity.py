@@ -16,7 +16,7 @@ from typing import Any, Callable
 
 import yfinance as yf
 
-from app.models import Candle, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
 from app.providers._util import normalize_resolution
 
 # resolution normalizada -> kwargs de yfinance `Ticker.history()`.
@@ -102,3 +102,22 @@ class EquityProvider:
                 )
             )
         return items
+
+    def get_financials(self, symbol: str) -> Financials:
+        """Métricas de `Ticker.info` (feat-14) — mismo `.info` que ya lee `get_quote`,
+        campos adicionales. `.get()` defensivo en cada uno: no todos los símbolos
+        tienen todos los datos (ej. una acción sin dividendo → `dividendYield`
+        ausente), y eso no es un error."""
+        info = self._ticker_factory(symbol).info
+        return Financials(
+            symbol=info.get("symbol", symbol),
+            market_cap=info.get("marketCap"),
+            pe_ratio=info.get("trailingPE"),
+            eps=info.get("trailingEps"),
+            dividend_yield=info.get("dividendYield"),
+            week52_high=info.get("fiftyTwoWeekHigh"),
+            week52_low=info.get("fiftyTwoWeekLow"),
+            beta=info.get("beta"),
+            sector=info.get("sector"),
+            industry=info.get("industry"),
+        )

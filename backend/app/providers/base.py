@@ -7,7 +7,7 @@ a una clase base concreta. Solo el contrato — sin implementación.
 
 from typing import Protocol, runtime_checkable
 
-from app.models import Candle, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
 
 
 @runtime_checkable
@@ -21,3 +21,5 @@ class Provider(Protocol):
     def search(self, query: str) -> list[SymbolMatch]: ...
 
     def get_news(self, symbol: str) -> list[NewsItem]: ...
+
+    def get_financials(self, symbol: str) -> Financials: ...

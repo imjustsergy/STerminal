@@ -50,3 +50,25 @@ class NewsItem:
     url: str
     source: str
     published_at: str
+
+
+@dataclass
+class Financials:
+    """Métricas financieras clave de un símbolo (feat-14, comando `FA`).
+
+    Todos los campos salvo `symbol` son opcionales: no todos los símbolos tienen todos
+    los datos (ej. una acción sin dividendo), y crypto/fx no tienen ninguno — un
+    `Financials` con todo a `None` es la respuesta documentada, no un error (mismo
+    espíritu que `NewsItem`/`get_news` en feat-2/feat-12).
+    """
+
+    symbol: str
+    market_cap: float | None
+    pe_ratio: float | None
+    eps: float | None
+    dividend_yield: float | None
+    week52_high: float | None
+    week52_low: float | None
+    beta: float | None
+    sector: str | None
+    industry: str | None
