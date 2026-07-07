@@ -34,6 +34,10 @@
     import/export CSV. Ver
     [`docs/sys/features/feat-6-portfolio-engine.md`](features/feat-6-portfolio-engine.md)
     y [`docs/plans/plan-6-portfolio-engine.md`](../plans/plan-6-portfolio-engine.md).
+  - feat-5 — Endpoints REST (`command_router.py`): `POST /command` único, despacha por
+    `CommandType` (feat-4) a `Registry`/`PortfolioEngine`. Ver
+    [`docs/sys/features/feat-5-rest-endpoints.md`](features/feat-5-rest-endpoints.md)
+    y [`docs/plans/plan-5-rest-endpoints.md`](../plans/plan-5-rest-endpoints.md).
 - **Fecha:** 2026-07-07
 - **Stack elegida:** FastAPI (Python) + frontend Svelte + TradingView lightweight-charts + SQLite.
 - **Diseño visual/UX (definitivo):** ver [`init-specs/DESIGN.md`](init-specs/DESIGN.md) —
@@ -320,6 +324,31 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
   correspondiente, sin infraestructura de FX de portafolio (fuera de alcance del MVP).
 - **Dependencias:** ninguna nueva — solo librería estándar (`sqlite3`, `csv`, `io`,
   `dataclasses`).
+
+### Endpoints REST implementados (desde feat-5)
+
+- **`POST /command`** (`backend/app/command_router.py`): un único endpoint en vez de
+  una ruta por tipo de comando — parsea el body (`{"input": "...", "resolution":
+  "1D"|"1W"|"1M"|"1Y"|null}`, `resolution` opcional para `GRAPH_PRICE`, feat-9) con
+  `commands.parse_command` (feat-4) y despacha por `CommandType`: `SUMMARY` (quote +
+  clase de activo), `GRAPH_PRICE` (histórico), `PORTFOLIO` (holdings + resumen de
+  `PortfolioEngine`, feat-6), `HELP` (generado desde las tablas de `commands.py`, no
+  hardcodeado). `NEWS`/`WATCHLIST`/`MOVERS` → `400` explícito (fuera de alcance del MVP,
+  o servidos por otro medio — `WATCH` en vivo es el WebSocket de feat-7).
+- **Errores siempre `400`, nunca `500`:** tanto errores de parseo (`CommandParseError`,
+  feat-4) como de datos (símbolo no resoluble) se normalizan a `400` con mensaje claro y,
+  cuando las hay, sugerencias de `Registry.search()`.
+- **Símbolo no encontrado (cierra un gap real de feat-11):** ni `registry.py` ni los
+  providers lanzan una excepción unificada para "no existe" — `EquityProvider`
+  (yfinance) devuelve un `Quote`/histórico vacío (precio `0.0`, sin velas) en vez de
+  fallar. `command_router` detecta esa señal (precio `0.0` en `SUMMARY`, sin velas en
+  `GRAPH_PRICE`) y la trata como símbolo no encontrado → mismo mecanismo de `400` +
+  sugerencias.
+- **`Registry`/`PortfolioEngine`** se instancian una única vez en el `lifespan` de
+  FastAPI con los providers reales, guardados en `app.state` (`backend/app/deps.py` los
+  inyecta a los routers; los tests los sustituyen vía `app.dependency_overrides`, sin
+  red real).
+- **Dependencias:** ninguna nueva — `pydantic` (ya viene con FastAPI).
 
 ---
 
