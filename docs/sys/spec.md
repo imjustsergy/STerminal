@@ -47,6 +47,10 @@
     [`init-specs/DESIGN.md`](init-specs/DESIGN.md). Ver
     [`docs/sys/features/feat-8-frontend-skeleton.md`](features/feat-8-frontend-skeleton.md)
     y [`docs/plans/plan-8-frontend-skeleton.md`](../plans/plan-8-frontend-skeleton.md).
+  - feat-9 — Panel de gráfico (`ChartPanel.svelte`, `lightweight-charts`): velas del
+    histórico `GRAPH_PRICE`, selector de rango `1D/1W/1M/1Y`. Ver
+    [`docs/sys/features/feat-9-frontend-chart.md`](features/feat-9-frontend-chart.md)
+    y [`docs/plans/plan-9-frontend-chart.md`](../plans/plan-9-frontend-chart.md).
 - **Fecha:** 2026-07-07
 - **Stack elegida:** FastAPI (Python) + frontend Svelte + TradingView lightweight-charts + SQLite.
 - **Diseño visual/UX (definitivo):** ver [`init-specs/DESIGN.md`](init-specs/DESIGN.md) —
@@ -392,6 +396,21 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
   colores por signo ya en `lib/format.ts`).
 - **Tests:** Vitest, para la lógica no visual (`dispatch`, `commandHistory`, `format`,
   `api`) — sin cobertura E2E/visual exhaustiva para el MVP.
+
+### Panel de gráfico implementado (desde feat-9)
+
+- **`ChartPanel.svelte`**: velas (`CandlestickSeries` de `lightweight-charts`) a partir
+  de `GRAPH_PRICE.candles`, transformadas por `lib/chartData.ts` (`toLightweightSeries`,
+  función pura, testeable sin `<canvas>` real).
+- **Rangos soportados: `1D`/`1W`/`1M`/`1Y`** (`SUPPORTED_RANGES` en `chartData.ts`) — los
+  únicos que el backend realmente sirve (`registry.py`/`command_router.py`), no se
+  inventan rangos adicionales. Pulsar un rango ya activo no repite la petición
+  (`nextRangeRequest`).
+- **`activeRange`/`onRangeChange`** viven en `App.svelte` (no en el panel): al cambiar de
+  rango, `App.svelte` vuelve a pedir `POST /command` con el `resolution` nuevo (feat-5) y
+  sustituye la respuesta — el panel solo dibuja lo que recibe.
+- **Dependencias nuevas:** `lightweight-charts` (ya declarada desde feat-8 en
+  `package.json`, sin usar hasta ahora).
 
 ---
 

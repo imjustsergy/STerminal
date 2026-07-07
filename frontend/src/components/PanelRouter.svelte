@@ -1,6 +1,8 @@
 <script lang="ts">
+  import type { Range } from '../lib/chartData';
   import type { PanelKind } from '../lib/dispatch';
   import type { CommandResponse } from '../lib/types';
+  import ChartPanel from './panels/ChartPanel.svelte';
   import HelpPanel from './panels/HelpPanel.svelte';
   import SummaryPanel from './panels/SummaryPanel.svelte';
 
@@ -8,9 +10,11 @@
     kind: PanelKind | 'welcome';
     response: CommandResponse | null;
     errorMessage?: string;
+    activeRange: Range;
+    onRangeChange: (range: Range) => void;
   }
 
-  const { kind, response, errorMessage = '' }: Props = $props();
+  const { kind, response, errorMessage = '', activeRange, onRangeChange }: Props = $props();
 </script>
 
 {#if kind === 'welcome'}
@@ -23,11 +27,14 @@
     <div class="hint dimmer">EMPEZAR — escribe un comando y pulsa ENTER</div>
     <div class="examples">
       <div><span class="acc">AAPL</span> <span class="dim">resumen de activo</span></div>
+      <div><span class="acc">AAPL GP</span> <span class="dim">gráfico de precio</span></div>
       <div><span class="acc">HELP</span> <span class="dim">lista de comandos</span></div>
     </div>
   </div>
 {:else if kind === 'summary' && response?.type === 'SUMMARY'}
   <SummaryPanel {response} />
+{:else if kind === 'graph_price' && response?.type === 'GRAPH_PRICE'}
+  <ChartPanel {response} {activeRange} {onRangeChange} />
 {:else if kind === 'help' && response?.type === 'HELP'}
   <HelpPanel {response} />
 {:else if kind === 'unknown'}
