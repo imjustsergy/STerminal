@@ -1,0 +1,109 @@
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/700.css';
+
+/*
+ * Tema "cobalt" (por defecto, DESIGN.md sección 2). Un único tema fijo para el MVP —
+ * el selector de tema (cobalt/amber/phosphor) queda documentado como fuera de alcance
+ * en feat-8.
+ */
+:root {
+  --bg: #05070e;
+  --panel: #0a0f1b;
+  --panel2: #0c1322;
+  --border: #1b2540;
+  --fg: #cdd8ee;
+  --dim: #7686a3;
+  --dimmer: #41506c;
+  --acc: #3d7bff;
+  --accdim: #13233f;
+  --pos: #2fd48b;
+  --neg: #ff5566;
+  --warn: #ffb02e;
+
+  color-scheme: dark;
+  font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+::selection {
+  background: rgba(120, 150, 255, 0.28);
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+a {
+  color: var(--acc);
+}
+a:hover {
+  color: var(--fg);
+}
+
+button {
+  font-family: inherit;
+}
+button:hover {
+  filter: brightness(1.25);
+}
+
+input,
+textarea {
+  font-family: inherit;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.sign-pos {
+  color: var(--pos);
+}
+.sign-neg {
+  color: var(--neg);
+}
+.sign-dim {
+  color: var(--dim);
+}
+
+.dim {
+  color: var(--dim);
+}
+.dimmer {
+  color: var(--dimmer);
+}
+.warn {
+  color: var(--warn);
+}

@@ -42,6 +42,11 @@
     reutilizando el `Registry`. Ver
     [`docs/sys/features/feat-7-websocket-stream.md`](features/feat-7-websocket-stream.md)
     y [`docs/plans/plan-7-websocket-stream.md`](../plans/plan-7-websocket-stream.md).
+  - feat-8 — Esqueleto frontend (`frontend/`, Svelte + Vite + pnpm): barra de comando
+    siempre enfocada, historial ↑/↓, layout de rejilla, fiel a
+    [`init-specs/DESIGN.md`](init-specs/DESIGN.md). Ver
+    [`docs/sys/features/feat-8-frontend-skeleton.md`](features/feat-8-frontend-skeleton.md)
+    y [`docs/plans/plan-8-frontend-skeleton.md`](../plans/plan-8-frontend-skeleton.md).
 - **Fecha:** 2026-07-07
 - **Stack elegida:** FastAPI (Python) + frontend Svelte + TradingView lightweight-charts + SQLite.
 - **Diseño visual/UX (definitivo):** ver [`init-specs/DESIGN.md`](init-specs/DESIGN.md) —
@@ -369,6 +374,24 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
 - Resuscripción en caliente (nuevo mensaje `subscribe` reemplaza la lista anterior) y
   manejo de desconexión (`WebSocketDisconnect`) sin dejar tareas huérfanas.
 - **Dependencias:** ninguna nueva — solo librería estándar (`asyncio`).
+
+### Frontend implementado (desde feat-8)
+
+- **`frontend/`** (Svelte 5 + Vite + TypeScript, `pnpm`): barra de comando (`CommandBar.svelte`)
+  siempre enfocada, con historial navegable (↑/↓, `commandHistory.ts`). Envía
+  `POST /command` (`lib/api.ts`, mismo formato que `command_router.py`) y despacha la
+  respuesta al panel correspondiente según `type` (`lib/dispatch.ts`).
+- **`PanelRouter.svelte`**: en esta etapa solo enruta `welcome` (pantalla de bienvenida),
+  `summary` (`SummaryPanel.svelte`) y `help` (`HelpPanel.svelte`) — los paneles de
+  gráfico/cartera/watchlist/error llegan en feat-9/10/11 y sustituyen el placeholder
+  genérico de "no implementado todavía".
+- **`lib/api.ts`**: `CommandApiError` tipado para cualquier fallo (4xx/5xx del backend o
+  red caída) — nunca deja la UI a medias sin explicación (spec.md sección 8), aunque el
+  panel de error dedicado (`ErrorPanel`) no llega hasta feat-11.
+- **Tema visual:** fiel a `docs/sys/init-specs/DESIGN.md` (densidad, JetBrains Mono,
+  colores por signo ya en `lib/format.ts`).
+- **Tests:** Vitest, para la lógica no visual (`dispatch`, `commandHistory`, `format`,
+  `api`) — sin cobertura E2E/visual exhaustiva para el MVP.
 
 ---
 
