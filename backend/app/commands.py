@@ -25,6 +25,7 @@ class CommandType(str, Enum):
     SUMMARY = "SUMMARY"
     GRAPH_PRICE = "GRAPH_PRICE"
     NEWS = "NEWS"
+    FA = "FA"
     PORTFOLIO = "PORTFOLIO"
     WATCHLIST = "WATCHLIST"
     MOVERS = "MOVERS"
@@ -91,6 +92,7 @@ class TooManyTokensError(CommandParseError):
 _SYMBOL_FUNCTIONS: dict[str, CommandType] = {
     "GP": CommandType.GRAPH_PRICE,
     "NEWS": CommandType.NEWS,
+    "FA": CommandType.FA,
 }
 
 # Funciones que no aceptan símbolo (`FUNCIÓN` a secas).
