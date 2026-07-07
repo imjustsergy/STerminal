@@ -1,5 +1,5 @@
 import { API_BASE_URL } from './config';
-import type { CommandErrorDetail, CommandResponse } from './types';
+import type { CommandErrorDetail, CommandResponse, SymbolMatch } from './types';
 
 /**
  * Error tipado lanzado por `postCommand` ante cualquier fallo: respuesta 4xx/5xx del
@@ -81,4 +81,26 @@ export async function postCommand(
   }
 
   return payload as CommandResponse;
+}
+
+/**
+ * `GET {API_BASE_URL}/search?q=...` (feat-13). A diferencia de `postCommand`, un fallo
+ * aquí (red caída, backend caído) no debe romper la barra de comando — el autocompletado
+ * es una mejora, no una función crítica. Devuelve `[]` en cualquier error en vez de
+ * lanzar, y deja que el usuario siga escribiendo su comando con normalidad.
+ */
+export async function searchSymbols(query: string): Promise<SymbolMatch[]> {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return [];
+  }
+  try {
+    const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(trimmed)}`);
+    if (!response.ok) {
+      return [];
+    }
+    return (await response.json()) as SymbolMatch[];
+  } catch {
+    return [];
+  }
 }

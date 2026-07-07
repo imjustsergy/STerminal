@@ -1,9 +1,10 @@
 """App FastAPI del backend de sterminal.
 
 Monta el health-check (feat-1), el router de despacho de comandos `POST /command`
-(feat-5) y el WebSocket de cotizaciones en vivo `/stream` (feat-7). `Registry` y
-`PortfolioEngine` se instancian una única vez, con los providers reales, en el evento
-`startup` — ver `backend/app/deps.py` para cómo los routers los consumen inyectados
+(feat-5), el WebSocket de cotizaciones en vivo `/stream` (feat-7) y la búsqueda de
+símbolos `GET /search` (feat-13). `Registry` y `PortfolioEngine` se instancian una
+única vez, con los providers reales, en el evento `startup` — ver
+`backend/app/deps.py` para cómo los routers los consumen inyectados
 (`app.dependency_overrides` en tests, sin red real).
 """
 
@@ -16,7 +17,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import command_router, stream_router
+from app import command_router, search_router, stream_router
 from app.db import init_db
 from app.portfolio import PortfolioEngine
 from app.providers.crypto import CryptoProvider
@@ -62,6 +63,7 @@ app.add_middleware(
 
 app.include_router(command_router.router)
 app.include_router(stream_router.router)
+app.include_router(search_router.router)
 
 
 @app.get("/health")

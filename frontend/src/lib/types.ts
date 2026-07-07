@@ -2,6 +2,12 @@
 // backend/app/portfolio.py). Escritas a mano (sin generación automática de un schema
 // OpenAPI) — YAGNI para el alcance de las features 8-11, ver plan-8-frontend-skeleton.md.
 
+export interface SymbolMatch {
+  symbol: string;
+  name: string;
+  asset_class: string;
+}
+
 export interface Quote {
   symbol: string;
   price: number;

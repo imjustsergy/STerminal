@@ -54,6 +54,7 @@ bucle) → scoring del producto → siguiente feature.
 | N | Título | Estado | Rama | Score tras mergear |
 |---|---|---|---|---|
 | 12 | Comando NEWS (noticias por activo, solo equity vía yfinance) | merged | feature-12-news | ver `docs/sys/scoring.md` |
+| 13 | Búsqueda de símbolos con autocompletado (`GET /search`, dropdown en CommandBar) | merged | feature-13-symbol-search | ver `docs/sys/scoring.md` |
 
 ## Fuera de alcance (ni del MVP ni del bucle post-MVP, salvo que se decida lo contrario)
 

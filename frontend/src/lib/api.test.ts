@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CommandApiError, postCommand } from './api';
+import { CommandApiError, postCommand, searchSymbols } from './api';
 
 function mockFetchOnce(status: number, body: unknown, ok = status < 400): void {
   vi.stubGlobal(
@@ -72,5 +72,42 @@ describe('postCommand', () => {
       name: 'CommandApiError',
       status: null,
     });
+  });
+});
+
+describe('searchSymbols', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('devuelve [] sin llamar a fetch para una query vacía o solo espacios', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    expect(await searchSymbols('')).toEqual([]);
+    expect(await searchSymbols('   ')).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('devuelve los resultados del backend en éxito', async () => {
+    mockFetchOnce(200, [{ symbol: 'AAPL', name: 'Apple Inc.', asset_class: 'equity' }]);
+    const result = await searchSymbols('aa');
+    expect(result).toEqual([{ symbol: 'AAPL', name: 'Apple Inc.', asset_class: 'equity' }]);
+  });
+
+  it('codifica la query en la URL', async () => {
+    mockFetchOnce(200, []);
+    await searchSymbols('a b');
+    const call = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[0]).toContain('q=a%20b');
+  });
+
+  it('devuelve [] (no lanza) si el backend responde con error', async () => {
+    mockFetchOnce(500, { detail: 'boom' });
+    expect(await searchSymbols('aa')).toEqual([]);
+  });
+
+  it('devuelve [] (no lanza) si fetch rechaza — red caída', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network error')));
+    expect(await searchSymbols('aa')).toEqual([]);
   });
 });
