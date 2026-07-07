@@ -4,10 +4,12 @@
   import type { CommandResponse } from '../lib/types';
   import ChartPanel from './panels/ChartPanel.svelte';
   import HelpPanel from './panels/HelpPanel.svelte';
+  import PortfolioPanel from './panels/PortfolioPanel.svelte';
   import SummaryPanel from './panels/SummaryPanel.svelte';
+  import WatchlistPanel from './panels/WatchlistPanel.svelte';
 
   interface Props {
-    kind: PanelKind | 'welcome';
+    kind: PanelKind | 'welcome' | 'watch';
     response: CommandResponse | null;
     errorMessage?: string;
     activeRange: Range;
@@ -28,6 +30,8 @@
     <div class="examples">
       <div><span class="acc">AAPL</span> <span class="dim">resumen de activo</span></div>
       <div><span class="acc">AAPL GP</span> <span class="dim">gráfico de precio</span></div>
+      <div><span class="acc">PORT</span> <span class="dim">cartera</span></div>
+      <div><span class="acc">WATCH</span> <span class="dim">watchlist en vivo</span></div>
       <div><span class="acc">HELP</span> <span class="dim">lista de comandos</span></div>
     </div>
   </div>
@@ -35,8 +39,12 @@
   <SummaryPanel {response} />
 {:else if kind === 'graph_price' && response?.type === 'GRAPH_PRICE'}
   <ChartPanel {response} {activeRange} {onRangeChange} />
+{:else if kind === 'portfolio' && response?.type === 'PORTFOLIO'}
+  <PortfolioPanel {response} />
 {:else if kind === 'help' && response?.type === 'HELP'}
   <HelpPanel {response} />
+{:else if kind === 'watch'}
+  <WatchlistPanel />
 {:else if kind === 'unknown'}
   <div class="placeholder">{errorMessage || 'panel no implementado todavía'}</div>
 {/if}

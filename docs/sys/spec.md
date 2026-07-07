@@ -51,6 +51,10 @@
     histórico `GRAPH_PRICE`, selector de rango `1D/1W/1M/1Y`. Ver
     [`docs/sys/features/feat-9-frontend-chart.md`](features/feat-9-frontend-chart.md)
     y [`docs/plans/plan-9-frontend-chart.md`](../plans/plan-9-frontend-chart.md).
+  - feat-10 — Paneles `PORT`/`WATCH` (`PortfolioPanel.svelte`, `WatchlistPanel.svelte`):
+    cartera vía `POST /command`, watchlist en vivo vía WebSocket `/stream` (feat-7). Ver
+    [`docs/sys/features/feat-10-frontend-panels.md`](features/feat-10-frontend-panels.md)
+    y [`docs/plans/plan-10-frontend-panels.md`](../plans/plan-10-frontend-panels.md).
 - **Fecha:** 2026-07-07
 - **Stack elegida:** FastAPI (Python) + frontend Svelte + TradingView lightweight-charts + SQLite.
 - **Diseño visual/UX (definitivo):** ver [`init-specs/DESIGN.md`](init-specs/DESIGN.md) —
@@ -411,6 +415,22 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
   sustituye la respuesta — el panel solo dibuja lo que recibe.
 - **Dependencias nuevas:** `lightweight-charts` (ya declarada desde feat-8 en
   `package.json`, sin usar hasta ahora).
+
+### Paneles PORT/WATCH implementados (desde feat-10)
+
+- **`PortfolioPanel.svelte`**: consume `PORTFOLIO.holdings`/`summary` (feat-6 vía feat-5)
+  directamente — sin estado propio, se recalcula en cada `POST /command`. Colores por
+  signo y formato monetario vía `lib/format.ts`.
+- **`WatchlistPanel.svelte`**: conecta al WebSocket `/stream` (feat-7) al montar, se
+  suscribe a `DEFAULT_WATCHLIST` (`lib/config.ts`), reconecta automáticamente con
+  backoff fijo (`RECONNECT_DELAY_MS`) si la conexión cae — indicador de conexión propio,
+  base para el estado "stale" que feat-11 generaliza. Mensajes parseados por
+  `lib/wsMessages.ts` (`parseStreamMessage`, función pura), símbolos con error
+  individual (`isQuoteError`) se muestran diferenciados sin tumbar el resto de la lista.
+- **`App.svelte`**: el comando `WATCH` (palabra clave, no pasa por `POST /command`)
+  activa directamente el panel — la watchlist vive enteramente en el WebSocket, no en el
+  ciclo request/response del resto de comandos.
+- **Dependencias:** ninguna nueva.
 
 ---
 

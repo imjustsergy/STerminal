@@ -6,7 +6,7 @@
   import { panelForResponse, type PanelKind } from './lib/dispatch';
   import type { CommandResponse } from './lib/types';
 
-  let kind: PanelKind | 'welcome' = $state('welcome');
+  let kind: PanelKind | 'welcome' | 'watch' = $state('welcome');
   let response: CommandResponse | null = $state(null);
   let errorMessage = $state('');
   let activeRange: Range = $state('1D');
@@ -25,6 +25,11 @@
 
   async function handleSubmit(raw: string): Promise<void> {
     const upper = raw.trim().toUpperCase();
+    if (upper === 'WATCH') {
+      kind = 'watch';
+      response = null;
+      return;
+    }
     if (upper === 'HOME') {
       kind = 'welcome';
       response = null;
