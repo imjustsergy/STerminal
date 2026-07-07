@@ -29,6 +29,11 @@
     `FUNCIÓN` y produce un `Command` estructurado (parsing puro, sin ejecutar nada). Ver
     [`docs/sys/features/feat-4-command-parser.md`](features/feat-4-command-parser.md)
     y [`docs/plans/plan-4-command-parser.md`](../plans/plan-4-command-parser.md).
+  - feat-6 — Portfolio engine (`portfolio.py`): CRUD de posiciones sobre SQLite, P&L en
+    vivo por posición y agregado, coste medio ponderado, % de asignación, P&L diario,
+    import/export CSV. Ver
+    [`docs/sys/features/feat-6-portfolio-engine.md`](features/feat-6-portfolio-engine.md)
+    y [`docs/plans/plan-6-portfolio-engine.md`](../plans/plan-6-portfolio-engine.md).
 - **Fecha:** 2026-07-07
 - **Stack elegida:** FastAPI (Python) + frontend Svelte + TradingView lightweight-charts + SQLite.
 - **Diseño visual/UX (definitivo):** ver [`init-specs/DESIGN.md`](init-specs/DESIGN.md) —
@@ -271,6 +276,50 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
   robustez parametrizado.
 - **Dependencias:** ninguna nueva — solo librería estándar (`dataclasses`, `enum`,
   `re`).
+
+### Portfolio engine implementado (desde feat-6)
+
+- **`PortfolioEngine`** (`backend/app/portfolio.py`): recibe por inyección de
+  dependencia una `sqlite3.Connection` (la que devuelve `db.init_db()`) y un
+  `Registry`-compatible (constructor `PortfolioEngine(conn, registry)`), mismo patrón
+  que `Registry` con sus providers. CRUD completo sobre `positions` (alta/lectura/
+  actualización/baja).
+- **Dos niveles de posición:** la tabla `positions` modela **lotes de compra**
+  individuales (`opened_at` por fila). `PortfolioEngine` expone P&L a nivel de fila
+  (`PositionPnL`, sin agregar) y a nivel agregado por símbolo (`holdings()`), que es el
+  nivel que de verdad importa para coste medio, % de asignación y P&L diario, y el que
+  consumirá el comando `PORT`. Agregación por `(symbol, asset_class)`, sin distinguir
+  `account`.
+- **Coste medio ponderado:** `avg_cost_price = sum(quantity_i * cost_price_i) /
+  sum(quantity_i)` sobre las filas de un mismo `(symbol, asset_class)`.
+- **% de asignación:** `market_value / total_market_value * 100` sobre el total de
+  todos los holdings de la cartera (no solo los de la misma clase de activo); `0.0` si
+  el total es 0 en vez de dividir por cero.
+- **P&L diario — precio de referencia exacto:** se obtiene `Registry.get_history(symbol,
+  "1D", asset_class=...)` (velas en orden cronológico ascendente) y se toma la
+  **penúltima vela** (`candles[-2].close`) como cierre de referencia, no la última —
+  porque la última vela de un histórico "1D" puede ser la sesión de hoy aún sin cerrar.
+  Con menos de 2 velas, `previous_close`/`daily_pnl`/`daily_pnl_percent` quedan en
+  `None` sin lanzar excepción (histórico insuficiente es un caso legítimo, ej. símbolo
+  recién listado).
+- **Import CSV — validación fila a fila, sin abortar el import:** columnas `symbol,
+  quantity, cost_price, date, account` (sección 6). Cada fila se valida
+  independientemente: `symbol` no vacío tras `strip()`, `quantity` y `cost_price`
+  parseables como `float` y estrictamente positivos; `account` opcional; `date` se
+  guarda tal cual como `opened_at` sin validar formato. La fila que falla cualquier
+  check se añade a `rejected` (con motivo legible) y el import continúa con el resto —
+  nunca aborta el CSV completo por una fila inválida. `asset_class` no viaja en el CSV;
+  se resuelve automáticamente por fila vía `Registry.resolve()`.
+- **Export CSV:** genera las mismas columnas (`symbol, quantity, cost_price, date,
+  account`) a partir de las filas crudas (`list_positions()`, sin agregar), de forma
+  que export→import es un round-trip fiel sin perder lotes individuales. Import/export
+  trabajan en memoria sobre `str` (`import_csv(csv_text)` / `export_csv() -> str`), sin
+  tocar disco — la capa que use ficheros o upload HTTP (feature 5) decide el transporte.
+- **Limitación documentada — sin multi-moneda:** el cálculo de P&L no convierte
+  divisas; cada posición se valora en la moneda que devuelve el `Quote` del provider
+  correspondiente, sin infraestructura de FX de portafolio (fuera de alcance del MVP).
+- **Dependencias:** ninguna nueva — solo librería estándar (`sqlite3`, `csv`, `io`,
+  `dataclasses`).
 
 ---
 
