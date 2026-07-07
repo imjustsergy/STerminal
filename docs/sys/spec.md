@@ -38,6 +38,10 @@
     `CommandType` (feat-4) a `Registry`/`PortfolioEngine`. Ver
     [`docs/sys/features/feat-5-rest-endpoints.md`](features/feat-5-rest-endpoints.md)
     y [`docs/plans/plan-5-rest-endpoints.md`](../plans/plan-5-rest-endpoints.md).
+  - feat-7 — WebSocket `/stream` (`stream_router.py`): push periódico de cotizaciones
+    reutilizando el `Registry`. Ver
+    [`docs/sys/features/feat-7-websocket-stream.md`](features/feat-7-websocket-stream.md)
+    y [`docs/plans/plan-7-websocket-stream.md`](../plans/plan-7-websocket-stream.md).
 - **Fecha:** 2026-07-07
 - **Stack elegida:** FastAPI (Python) + frontend Svelte + TradingView lightweight-charts + SQLite.
 - **Diseño visual/UX (definitivo):** ver [`init-specs/DESIGN.md`](init-specs/DESIGN.md) —
@@ -349,6 +353,22 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
   inyecta a los routers; los tests los sustituyen vía `app.dependency_overrides`, sin
   red real).
 - **Dependencias:** ninguna nueva — `pydantic` (ya viene con FastAPI).
+
+### WebSocket /stream implementado (desde feat-7)
+
+- **`stream_router.py`** (`app.include_router` en `main.py`): el cliente se suscribe a
+  una lista de símbolos (`{"subscribe": [...]}`) y recibe pushes `{"quotes": [...]}` a
+  intervalos regulares. Reutiliza el `Registry` y su caché TTL (feat-3) — este módulo no
+  duplica lógica de caché, solo refresca y empuja.
+- **Intervalo por defecto ~15s** (spec.md secciones 5/11), inyectable como dependencia
+  para que los tests no dependan de esperas reales.
+- **Un loop de refresco por conexión activa**, sin loop global compartido — aceptable
+  para el MVP (un solo usuario, self-hosted). Limitación de escalabilidad documentada y
+  no resuelta a propósito (YAGNI): si hubiera muchas conexiones concurrentes, cada una
+  refresca por su cuenta en vez de compartir un único loop de fan-out.
+- Resuscripción en caliente (nuevo mensaje `subscribe` reemplaza la lista anterior) y
+  manejo de desconexión (`WebSocketDisconnect`) sin dejar tareas huérfanas.
+- **Dependencias:** ninguna nueva — solo librería estándar (`asyncio`).
 
 ---
 
