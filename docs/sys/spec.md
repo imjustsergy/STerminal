@@ -25,6 +25,10 @@
     activo) + caché TTL en memoria (`cache.py`). Ver
     [`docs/sys/features/feat-3-registry-cache.md`](features/feat-3-registry-cache.md)
     y [`docs/plans/plan-3-registry-cache.md`](../plans/plan-3-registry-cache.md).
+  - feat-4 — Parser de comandos (`commands.py`): tokeniza `[SÍMBOLO] [FUNCIÓN]` o
+    `FUNCIÓN` y produce un `Command` estructurado (parsing puro, sin ejecutar nada). Ver
+    [`docs/sys/features/feat-4-command-parser.md`](features/feat-4-command-parser.md)
+    y [`docs/plans/plan-4-command-parser.md`](../plans/plan-4-command-parser.md).
 - **Fecha:** 2026-07-07
 - **Stack elegida:** FastAPI (Python) + frontend Svelte + TradingView lightweight-charts + SQLite.
 - **Diseño visual/UX (definitivo):** ver [`init-specs/DESIGN.md`](init-specs/DESIGN.md) —
@@ -229,6 +233,44 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
     Se revisita si una feature futura añade una resolución intradía real.
   - `search` → sin caché (no definida en la sección 3).
 - **Dependencias:** ninguna nueva — solo librería estándar (`time`).
+
+### Parser de comandos implementado (desde feat-4)
+
+- **`commands.py`** (`backend/app/commands.py`): expone `parse_command(raw: str) ->
+  Command`, capa de parsing pura — no llama al registry ni a ningún provider, no toca
+  HTTP. Tokeniza con `str.split()` (colapsa espacios repetidos y descarta los de los
+  extremos) y decide la rama de parsing por número de tokens (0, 1, 2, 3+).
+- **`Command`** (dataclass `frozen=True`): `type: CommandType`, `symbol: str | None`,
+  `raw: str` (cadena original tal cual la escribió el usuario, sin normalizar, para
+  logging/debug). Mismo criterio que `Quote`/`Candle` (feat-1): dataclass estándar, no
+  pydantic — tipo de dominio interno.
+- **`CommandType`** (`enum.Enum` de cadena): `SUMMARY`, `GRAPH_PRICE`, `NEWS`,
+  `PORTFOLIO`, `WATCHLIST`, `MOVERS`, `HELP` — 7 miembros que cubren las 8 filas de la
+  tabla de la sección 4 (`EURUSD` comparte `SUMMARY` con `AAPL`; la clase de activo no
+  se resuelve en el parser, sigue siendo trabajo del registry en feat-3/feat-5).
+- **Distinción "con símbolo" vs. "sin símbolo":** dos tablas explícitas en vez de un
+  único diccionario — `_SYMBOL_FUNCTIONS` (`GP`→`GRAPH_PRICE`, `NEWS`→`NEWS`, exigen
+  símbolo) y `_NO_SYMBOL_FUNCTIONS` (`PORT`→`PORTFOLIO`, `WATCH`→`WATCHLIST`,
+  `MOVERS`→`MOVERS`, `HELP`→`HELP`, no lo aceptan). Un único token que no aparece en
+  ninguna tabla se interpreta como símbolo desnudo → `SUMMARY` (cubre `AAPL`, `EURUSD`,
+  `BTC` sin función). Símbolo y función se normalizan a mayúsculas (`token.upper()`) —
+  case-insensitive, coherente con la normalización de `registry.py` (feat-3).
+- **Validación de forma de símbolo:** regex `^[A-Z0-9][A-Z0-9.\-]{0,14}$` (empieza por
+  letra/dígito, permite letras/dígitos/punto/guion, máximo 15 caracteres); no valida
+  existencia real (eso requiere red, fuera de alcance del parser).
+- **Manejo de errores — jerarquía de excepciones tipadas**, no un resultado con campo de
+  error: `CommandParseError(ValueError)` como base (mismo patrón que
+  `UnknownSymbolError(ValueError)` en `registry.py`, para que un `except ValueError`
+  amplio también las capture), con subclases `EmptyCommandError` (cadena vacía/solo
+  espacios), `UnknownCommandError` (función desconocida), `InvalidSymbolError` (símbolo
+  con formato inválido), `MissingSymbolError` (función que exige símbolo y no lo
+  recibe), `UnexpectedSymbolError` (función que no acepta símbolo y lo recibe) y
+  `TooManyTokensError` (3+ tokens). `parse_command` nunca deja escapar una excepción
+  fuera de esta jerarquía para una entrada `str` — ningún typo común propaga
+  `IndexError`/`KeyError`/`AttributeError` sin controlar, verificado con un test de
+  robustez parametrizado.
+- **Dependencias:** ninguna nueva — solo librería estándar (`dataclasses`, `enum`,
+  `re`).
 
 ---
 
