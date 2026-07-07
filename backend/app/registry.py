@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import Literal
 
 from app.cache import TTLCache
-from app.models import Candle, Quote, SymbolMatch
+from app.models import Candle, NewsItem, Quote, SymbolMatch
 from app.providers._util import normalize_resolution
 from app.providers.base import Provider
 
@@ -169,6 +169,22 @@ class Registry:
         )
         self._cache.set(cache_key, candles, ttl)
         return candles
+
+    def get_news(self, symbol: str, asset_class: AssetClass | None = None) -> list[NewsItem]:
+        """Noticias de `symbol` (feat-12). Solo `EquityProvider` (yfinance) devuelve
+        datos reales — crypto/fx devuelven `[]` de forma documentada (feat-2), no un
+        error. Cachea con el TTL de histórico diario: las noticias no son un dato de
+        refresco tan frecuente como una cotización."""
+        resolved_class, internal_symbol = self.resolve(symbol, asset_class)
+        cache_key = ("news", resolved_class, internal_symbol)
+
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        news = self._provider_for(resolved_class).get_news(internal_symbol)
+        self._cache.set(cache_key, news, HISTORY_DAILY_TTL_SECONDS)
+        return news
 
     def search(self, query: str) -> list[SymbolMatch]:
         """Agrega resultados de búsqueda de los tres providers (equity, crypto, fx).
