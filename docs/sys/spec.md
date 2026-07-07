@@ -10,7 +10,7 @@
 > datos de APIs gratuitas, navegación por línea de comandos con teclado, y cartera real
 > por entrada manual/CSV con P&L en vivo.
 
-- **Estado:** en implementación (MVP).
+- **Estado:** MVP completo (11/11 features), pendiente de review y merge del owner.
 - **Features implementadas:**
   - feat-1 — Esqueleto backend: FastAPI + SQLite (esquema `positions`/`watchlist`/
     `settings`) + interfaz `Provider` (`Protocol`). Ver
@@ -55,7 +55,12 @@
     cartera vía `POST /command`, watchlist en vivo vía WebSocket `/stream` (feat-7). Ver
     [`docs/sys/features/feat-10-frontend-panels.md`](features/feat-10-frontend-panels.md)
     y [`docs/plans/plan-10-frontend-panels.md`](../plans/plan-10-frontend-panels.md).
-- **Fecha:** 2026-07-07
+  - feat-11 — Estados stale/error end-to-end (`ErrorPanel.svelte`): nunca pantalla en
+    blanco ante un fallo del backend o de red; cierra el gap de "símbolo no encontrado"
+    detectado probando feat-5 en vivo. Ver
+    [`docs/sys/features/feat-11-stale-error-states.md`](features/feat-11-stale-error-states.md)
+    y [`docs/plans/plan-11-stale-error-states.md`](../plans/plan-11-stale-error-states.md).
+- **Fecha:** 2026-07-08
 - **Stack elegida:** FastAPI (Python) + frontend Svelte + TradingView lightweight-charts + SQLite.
 - **Diseño visual/UX (definitivo):** ver [`init-specs/DESIGN.md`](init-specs/DESIGN.md) —
   documento de diseño a aplicar en el desarrollo, con su prototipo autocontenido
@@ -431,6 +436,27 @@ TTL de caché sugerido: cotización ~15 s, histórico intradía ~1 min, históri
   activa directamente el panel — la watchlist vive enteramente en el WebSocket, no en el
   ciclo request/response del resto de comandos.
 - **Dependencias:** ninguna nueva.
+
+### Estados stale/error end-to-end implementados (desde feat-11) — MVP completo
+
+- **`ErrorPanel.svelte`**: banner de error genérico (mensaje + sugerencias de
+  `Registry.search()` cuando las hay) — nunca pantalla en blanco ante un fallo del
+  backend (4xx/5xx) o de red caída (spec.md sección 8), sustituye el placeholder
+  genérico de feat-8.
+- **`App.svelte`**: `CommandApiError` (feat-8, `lib/api.ts`) se captura explícitamente
+  (`showError`) y activa `kind = 'error'` con `errorMessage`/`errorSuggestions` — antes
+  cualquier fallo caía al mismo `'unknown'` sin distinguir mensaje real de sugerencias.
+- **Gap real cerrado (detectado probando feat-5 en vivo, no por los tests unitarios):**
+  un símbolo inexistente devolvía `200` con `Quote(price=0.0)` en vez de un error —
+  `command_router.py` (feat-5) ahora detecta esa señal (precio `0.0` en `SUMMARY`, sin
+  velas en `GRAPH_PRICE`) y la trata como símbolo no encontrado → `400` + sugerencias,
+  que `ErrorPanel` ya sabe mostrar.
+- **`WatchlistPanel.svelte`** (feat-10) ya traía su propio indicador de
+  conexión/reconexión — la base del estado "stale" para datos en vivo; feat-11 lo
+  complementa con el estado de error explícito para el flujo request/response.
+- **Dependencias:** ninguna nueva.
+- **Con esta feature, las 11 features del MVP quedan implementadas** (ver tabla de
+  estado en [`docs/plans/plan-mvp.md`](../plans/plan-mvp.md)).
 
 ---
 

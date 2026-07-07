@@ -2,6 +2,7 @@
   import type { Range } from '../lib/chartData';
   import type { PanelKind } from '../lib/dispatch';
   import type { CommandResponse } from '../lib/types';
+  import ErrorPanel from './panels/ErrorPanel.svelte';
   import ChartPanel from './panels/ChartPanel.svelte';
   import HelpPanel from './panels/HelpPanel.svelte';
   import PortfolioPanel from './panels/PortfolioPanel.svelte';
@@ -9,14 +10,22 @@
   import WatchlistPanel from './panels/WatchlistPanel.svelte';
 
   interface Props {
-    kind: PanelKind | 'welcome' | 'watch';
+    kind: PanelKind | 'welcome' | 'watch' | 'error';
     response: CommandResponse | null;
     errorMessage?: string;
+    errorSuggestions?: string[];
     activeRange: Range;
     onRangeChange: (range: Range) => void;
   }
 
-  const { kind, response, errorMessage = '', activeRange, onRangeChange }: Props = $props();
+  const {
+    kind,
+    response,
+    errorMessage = '',
+    errorSuggestions = [],
+    activeRange,
+    onRangeChange,
+  }: Props = $props();
 </script>
 
 {#if kind === 'welcome'}
@@ -35,6 +44,8 @@
       <div><span class="acc">HELP</span> <span class="dim">lista de comandos</span></div>
     </div>
   </div>
+{:else if kind === 'error'}
+  <ErrorPanel message={errorMessage} suggestions={errorSuggestions} />
 {:else if kind === 'summary' && response?.type === 'SUMMARY'}
   <SummaryPanel {response} />
 {:else if kind === 'graph_price' && response?.type === 'GRAPH_PRICE'}
@@ -45,8 +56,8 @@
   <HelpPanel {response} />
 {:else if kind === 'watch'}
   <WatchlistPanel />
-{:else if kind === 'unknown'}
-  <div class="placeholder">{errorMessage || 'panel no implementado todavía'}</div>
+{:else}
+  <ErrorPanel message="tipo de respuesta desconocido" />
 {/if}
 
 <style>
@@ -93,9 +104,5 @@
     font-weight: 700;
     min-width: 104px;
     display: inline-block;
-  }
-  .placeholder {
-    padding: 32px;
-    color: var(--dim);
   }
 </style>

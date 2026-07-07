@@ -1,16 +1,28 @@
 <script lang="ts">
   import CommandBar from './components/CommandBar.svelte';
   import PanelRouter from './components/PanelRouter.svelte';
-  import { postCommand } from './lib/api';
+  import { CommandApiError, postCommand } from './lib/api';
   import type { Range } from './lib/chartData';
   import { panelForResponse, type PanelKind } from './lib/dispatch';
   import type { CommandResponse } from './lib/types';
 
-  let kind: PanelKind | 'welcome' | 'watch' = $state('welcome');
+  let kind: PanelKind | 'welcome' | 'watch' | 'error' = $state('welcome');
   let response: CommandResponse | null = $state(null);
   let errorMessage = $state('');
+  let errorSuggestions: string[] = $state([]);
   let activeRange: Range = $state('1D');
   let lastRawInput = $state('');
+
+  function showError(err: unknown): void {
+    if (err instanceof CommandApiError) {
+      errorMessage = err.message;
+      errorSuggestions = err.detail?.suggestions ?? [];
+    } else {
+      errorMessage = 'error inesperado en el frontend';
+      errorSuggestions = [];
+    }
+    kind = 'error';
+  }
 
   async function runCommand(raw: string, resolution: Range): Promise<void> {
     try {
@@ -18,8 +30,7 @@
       response = result;
       kind = panelForResponse(result);
     } catch (err) {
-      errorMessage = err instanceof Error ? err.message : 'error inesperado en el frontend';
-      kind = 'unknown';
+      showError(err);
     }
   }
 
@@ -55,7 +66,7 @@
     </div>
   </header>
   <main>
-    <PanelRouter {kind} {response} {errorMessage} {activeRange} onRangeChange={handleRangeChange} />
+    <PanelRouter {kind} {response} {errorMessage} {errorSuggestions} {activeRange} onRangeChange={handleRangeChange} />
   </main>
   <CommandBar onSubmit={handleSubmit} />
 </div>

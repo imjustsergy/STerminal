@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import command_router, stream_router
 from app.db import init_db
@@ -44,6 +45,20 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="sterminal", lifespan=_lifespan)
+
+# El frontend (feat-8, Svelte + Vite) siempre se sirve en un origen/puerto distinto del
+# backend (dev server de Vite en un puerto, uvicorn en otro; en producción, previsiblemente
+# también). Sin CORS, el navegador bloquea `fetch` a `POST /command` desde ese origen
+# distinto. App de un solo usuario, self-hosted, sin autenticación ni datos sensibles de
+# terceros (spec.md sección 1) — `allow_origins=["*"]` es aceptable aquí (no hay sesión ni
+# cookie que proteger de CSRF); si en el futuro se sirve tras un dominio fijo, se puede
+# restringir a ese origen concreto.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(command_router.router)
 app.include_router(stream_router.router)
