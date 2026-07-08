@@ -18,7 +18,8 @@ from __future__ import annotations
 from typing import Literal
 
 from app.cache import TTLCache
-from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
+from app.correlation import compute_correlations
+from app.models import Candle, CorrelationResult, Financials, NewsItem, Quote, SymbolMatch
 from app.providers._util import normalize_resolution
 from app.providers.base import Provider
 
@@ -60,6 +61,19 @@ _FX_CURRENCY_CODES: frozenset[str] = frozenset(
         "SEK", "NOK", "DKK", "SGD", "MXN", "ZAR", "TRY", "PLN", "INR", "BRL",
     }
 )
+
+
+# Cesta fija de referencia para el comando CORR (feat-15): cubre las tres clases de
+# activo con símbolos líquidos y conocidos. `SPY`/`QQQ`/`GLD` son ETFs, se resuelven
+# como equity vía yfinance igual que cualquier ticker bursátil.
+_REFERENCE_UNIVERSE: list[tuple[str, AssetClass]] = [
+    ("SPY", "equity"),
+    ("QQQ", "equity"),
+    ("GLD", "equity"),
+    ("BTC", "crypto"),
+    ("ETH", "crypto"),
+    ("EURUSD", "fx"),
+]
 
 
 class UnknownSymbolError(ValueError):
@@ -203,6 +217,38 @@ class Registry:
         financials = self._provider_for(resolved_class).get_financials(internal_symbol)
         self._cache.set(cache_key, financials, HISTORY_DAILY_TTL_SECONDS)
         return financials
+
+    def get_correlations(
+        self, symbol: str, asset_class: AssetClass | None = None
+    ) -> list[CorrelationResult]:
+        """Correlación de rendimientos diarios entre `symbol` y la cesta de referencia
+        fija `_REFERENCE_UNIVERSE` (feat-15, comando `CORR`). Una referencia individual
+        cuyo histórico falle al obtenerse (símbolo puntual caído, error de red) se
+        omite — no rompe el comando entero por un fallo aislado de la cesta. Mismo TTL
+        que `get_news`/`get_financials`: la correlación cambia con baja frecuencia."""
+        resolved_class, internal_symbol = self.resolve(symbol, asset_class)
+        cache_key = ("correlations", resolved_class, internal_symbol)
+
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        target_candles = self.get_history(symbol, "1M", asset_class)
+
+        reference_series: dict[str, tuple[str, list[Candle]]] = {}
+        for ref_symbol, ref_class in _REFERENCE_UNIVERSE:
+            ref_resolved_class, ref_internal_symbol = self.resolve(ref_symbol, ref_class)
+            if ref_resolved_class == resolved_class and ref_internal_symbol == internal_symbol:
+                continue  # no correlacionar el símbolo consigo mismo
+            try:
+                ref_candles = self.get_history(ref_symbol, "1M", ref_class)
+            except Exception:
+                continue
+            reference_series[ref_symbol] = (ref_resolved_class, ref_candles)
+
+        results = compute_correlations(target_candles, reference_series)
+        self._cache.set(cache_key, results, HISTORY_DAILY_TTL_SECONDS)
+        return results
 
     def search(self, query: str) -> list[SymbolMatch]:
         """Agrega resultados de búsqueda de los tres providers (equity, crypto, fx).

@@ -27,7 +27,7 @@ from app.commands import (
 
 
 def test_symbol_and_no_symbol_function_tables_cover_spec_and_dont_overlap() -> None:
-    assert set(_SYMBOL_FUNCTIONS) == {"GP", "NEWS", "FA"}
+    assert set(_SYMBOL_FUNCTIONS) == {"GP", "NEWS", "FA", "CORR"}
     assert set(_NO_SYMBOL_FUNCTIONS) == {"PORT", "WATCH", "MOVERS", "HELP"}
     assert set(_SYMBOL_FUNCTIONS).isdisjoint(_NO_SYMBOL_FUNCTIONS)
 
@@ -88,7 +88,7 @@ def test_no_symbol_functions_alone(raw: str, expected_type: CommandType) -> None
     assert command.raw == raw
 
 
-@pytest.mark.parametrize("raw", ["GP", "gp", "NEWS", "news", "FA", "fa"])
+@pytest.mark.parametrize("raw", ["GP", "gp", "NEWS", "news", "FA", "fa", "CORR", "corr"])
 def test_symbol_function_alone_raises_missing_symbol(raw: str) -> None:
     with pytest.raises(MissingSymbolError):
         parse_command(raw)
@@ -107,6 +107,8 @@ def test_symbol_function_alone_raises_missing_symbol(raw: str) -> None:
         ("aapl news", CommandType.NEWS, "AAPL"),
         ("AAPL FA", CommandType.FA, "AAPL"),
         ("aapl fa", CommandType.FA, "AAPL"),
+        ("AAPL CORR", CommandType.CORR, "AAPL"),
+        ("aapl corr", CommandType.CORR, "AAPL"),
         ("  btc   gp  ", CommandType.GRAPH_PRICE, "BTC"),
     ],
 )
@@ -189,6 +191,7 @@ def test_never_raises_uncontrolled_exception(raw: str) -> None:
         ("BTC GP", Command(CommandType.GRAPH_PRICE, "BTC", "BTC GP")),
         ("AAPL NEWS", Command(CommandType.NEWS, "AAPL", "AAPL NEWS")),
         ("AAPL FA", Command(CommandType.FA, "AAPL", "AAPL FA")),
+        ("AAPL CORR", Command(CommandType.CORR, "AAPL", "AAPL CORR")),
         ("PORT", Command(CommandType.PORTFOLIO, None, "PORT")),
         ("WATCH", Command(CommandType.WATCHLIST, None, "WATCH")),
         ("EURUSD", Command(CommandType.SUMMARY, "EURUSD", "EURUSD")),

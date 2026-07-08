@@ -67,6 +67,7 @@ _COMMAND_DESCRIPTIONS: dict[CommandType, str] = {
     CommandType.GRAPH_PRICE: "Gráfico de precio: histórico OHLC del símbolo.",
     CommandType.NEWS: "Noticias del activo (solo equity tiene datos reales, feat-12).",
     CommandType.FA: "Datos financieros: cap. de mercado, PER, BPA, dividendo, beta, sector (feat-14).",
+    CommandType.CORR: "Correlación de rendimientos diarios frente a una cesta de referencia fija (feat-15).",
     CommandType.PORTFOLIO: "Cartera: posiciones agregadas, P&L y asignación.",
     CommandType.WATCHLIST: "Watchlist en vivo (ver WebSocket /stream, feature 7).",
     CommandType.MOVERS: "Mayores subidas/bajadas del día (fuera de alcance del MVP).",
@@ -219,6 +220,27 @@ def _dispatch_financials(command: Command, registry: Registry) -> dict[str, Any]
     }
 
 
+def _dispatch_correlations(command: Command, registry: Registry) -> dict[str, Any]:
+    """feat-15. Cesta de referencia fija (`Registry._REFERENCE_UNIVERSE`). Una cesta
+    con todas las correlaciones a `None` (símbolo con histórico insuficiente para
+    calcular con fiabilidad) es una respuesta 200 válida, no "símbolo no encontrado" —
+    mismo criterio que FA/NEWS. Ordenado por correlación descendente, los `None`
+    (datos insuficientes) al final."""
+    assert command.symbol is not None  # garantizado por parse_command para CORR
+    asset_class, _internal_symbol = registry.resolve(command.symbol)
+    correlations = registry.get_correlations(command.symbol)
+    ordered = sorted(
+        correlations,
+        key=lambda r: (r.correlation is None, -(r.correlation or 0.0)),
+    )
+    return {
+        "type": CommandType.CORR.value,
+        "symbol": command.symbol,
+        "asset_class": asset_class,
+        "correlations": [dataclasses.asdict(r) for r in ordered],
+    }
+
+
 def _dispatch(
     command: Command,
     registry: Registry,
@@ -237,6 +259,8 @@ def _dispatch(
         return _dispatch_news(command, registry)
     if command.type == CommandType.FA:
         return _dispatch_financials(command, registry)
+    if command.type == CommandType.CORR:
+        return _dispatch_correlations(command, registry)
     # WATCHLIST / MOVERS: reconocidos por el parser, no ejecutables aquí.
     raise UnsupportedCommandError(
         _UNSUPPORTED_MESSAGES.get(

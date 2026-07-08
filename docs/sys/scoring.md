@@ -94,3 +94,43 @@ iteración.
 correlaciones — quedan como las piezas más grandes del objetivo original sin cubrir;
 probablemente la siguiente iteración, ya que ambas reutilizan la base de búsqueda de
 símbolos (feat-13) para encontrar los símbolos relacionados a mostrar.
+
+### Tras feat-15 (comando CORR — correlaciones de precio) — 2026-07-08
+
+**Score: 8.5/10**
+
+- **Funcionalidad (8/10):** cubre la lectura implementable de "dependencias de
+  entrada/salida entre símbolos" del objetivo original — correlación de rendimientos
+  frente a una cesta de referencia fija (índices, oro, cripto líquidas, EUR/USD), con
+  las tres clases de activo pudiendo ser tanto el símbolo consultado como parte de la
+  cesta. Sigue faltando: enlaces a reports (estados financieros completos) — el único
+  punto del objetivo original todavía sin cubrir de forma directa. La cesta es fija
+  (no configurable por el owner) — decisión YAGNI documentada en el spec, podría
+  revisarse si el owner la pide.
+- **UX (8/10):** lista clara ordenada por correlación descendente (lo más relevante
+  arriba), color por signo reutilizando el patrón ya establecido (`signColor`),
+  "datos insuficientes" explícito por fila en vez de omitir la referencia
+  silenciosamente — el usuario ve la cesta completa siempre, sepa o no sepa el dato.
+- **Calidad de datos (8/10):** correlación real calculada sobre histórico real de
+  yfinance/CoinGecko/frankfurter, verificada en vivo con valores coherentes (`BTC`
+  correlaciona 0.89 con `ETH`, un resultado esperable y verificable). A diferencia de
+  feat-14, esta vez no se encontró ningún bug de identidad de símbolo en la
+  verificación en vivo — se diseñó `Registry.get_correlations` usando el ticker
+  legible de `_REFERENCE_UNIVERSE` como clave del resultado desde el principio, en
+  vez del símbolo interno traducido del provider, aplicando la lección de feat-14
+  antes de escribir el código en vez de después de encontrarla en producción.
+- **Robustez (9/10):** cálculo de Pearson puro y testeado con series sintéticas
+  (idénticas, rendimiento exactamente opuesto, cortas, sin fechas comunes, varianza
+  cero, múltiples referencias independientes) antes de tocar ningún dato real — el
+  módulo `correlation.py` nunca revienta con `ZeroDivisionError` ni con series
+  desalineadas. Una referencia que falla al obtener histórico se salta sin romper el
+  comando entero (testeado con un fallo simulado). 228 tests backend + 69 tests
+  frontend, build limpio, verificado en vivo contra las tres clases de activo como
+  símbolo consultado.
+
+**Qué falta para subir el score:** enlaces a reports (estados financieros completos:
+balance, income statement, cash flow) es la única pieza explícita del objetivo
+original que queda sin cubrir. A partir de aquí el resto de mejoras hacia 9/10
+probablemente vengan de pulir lo ya construido (UX de navegación entre paneles
+relacionados — ej. saltar de `CORR` a `FA` del símbolo correlacionado con un clic) más
+que de features nuevas grandes.
