@@ -68,6 +68,7 @@ _COMMAND_DESCRIPTIONS: dict[CommandType, str] = {
     CommandType.NEWS: "Noticias del activo (solo equity tiene datos reales, feat-12).",
     CommandType.FA: "Datos financieros: cap. de mercado, PER, BPA, dividendo, beta, sector (feat-14).",
     CommandType.CORR: "Correlación de rendimientos diarios frente a una cesta de referencia fija (feat-15).",
+    CommandType.REPORTS: "Enlaces externos a fuentes de reports: Yahoo Finance, SEC EDGAR, sitio del proyecto (feat-16).",
     CommandType.PORTFOLIO: "Cartera: posiciones agregadas, P&L y asignación.",
     CommandType.WATCHLIST: "Watchlist en vivo (ver WebSocket /stream, feature 7).",
     CommandType.MOVERS: "Mayores subidas/bajadas del día (fuera de alcance del MVP).",
@@ -241,6 +242,22 @@ def _dispatch_correlations(command: Command, registry: Registry) -> dict[str, An
     }
 
 
+def _dispatch_report_links(command: Command, registry: Registry) -> dict[str, Any]:
+    """feat-16. Enlaces externos a fuentes de reports — sterminal no aloja ni
+    reprocesa el contenido. `links: []` es una respuesta 200 válida y documentada
+    (fx siempre, crypto a veces si el proyecto no publica ninguno), no "símbolo no
+    encontrado" — mismo criterio que NEWS/FA/CORR."""
+    assert command.symbol is not None  # garantizado por parse_command para REPORTS
+    asset_class, _internal_symbol = registry.resolve(command.symbol)
+    links = registry.get_report_links(command.symbol)
+    return {
+        "type": CommandType.REPORTS.value,
+        "symbol": command.symbol,
+        "asset_class": asset_class,
+        "links": [dataclasses.asdict(link) for link in links],
+    }
+
+
 def _dispatch(
     command: Command,
     registry: Registry,
@@ -261,6 +278,8 @@ def _dispatch(
         return _dispatch_financials(command, registry)
     if command.type == CommandType.CORR:
         return _dispatch_correlations(command, registry)
+    if command.type == CommandType.REPORTS:
+        return _dispatch_report_links(command, registry)
     # WATCHLIST / MOVERS: reconocidos por el parser, no ejecutables aquí.
     raise UnsupportedCommandError(
         _UNSUPPORTED_MESSAGES.get(
