@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.deps import get_portfolio_engine, get_registry
 from app.main import app
-from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
+from app.models import Candle, CorrelationResult, Financials, NewsItem, Quote, SymbolMatch
 from app.portfolio import Holding, PortfolioSummary
 
 
@@ -35,6 +35,8 @@ class FakeRegistry:
         self.news_result: list[NewsItem] = []
         self.financials_calls: list[str] = []
         self.financials_result: Financials | None = None
+        self.correlations_calls: list[str] = []
+        self.correlations_result: list[CorrelationResult] = []
 
     def resolve(self, symbol: str, asset_class: str | None = None) -> tuple[str, str]:
         if asset_class is not None:
@@ -113,6 +115,12 @@ class FakeRegistry:
             sector=None,
             industry=None,
         )
+
+    def get_correlations(
+        self, symbol: str, asset_class: str | None = None
+    ) -> list[CorrelationResult]:
+        self.correlations_calls.append(symbol)
+        return self.correlations_result
 
 
 class FakePortfolioEngine:
@@ -279,6 +287,7 @@ def test_help_lists_all_commands(client) -> None:
     assert "<SÍMBOLO> GP" in usages
     assert "<SÍMBOLO> NEWS" in usages
     assert "<SÍMBOLO> FA" in usages
+    assert "<SÍMBOLO> CORR" in usages
     for entry in body["commands"]:
         assert entry["description"]
 
@@ -390,6 +399,44 @@ def test_fa_translated_symbol_is_reported_as_the_requested_symbol(client) -> Non
     body = response.json()
     assert body["symbol"] == "BTC"
     assert body["financials"]["symbol"] == "BTC"
+
+
+# --- CORR (feat-15) -----------------------------------------------------------
+
+
+def test_corr_equity_returns_ranked_correlations(client) -> None:
+    test_client, registry, _ = client
+    registry.correlations_result = [
+        CorrelationResult(symbol="GLD", asset_class="equity", correlation=-0.2),
+        CorrelationResult(symbol="SPY", asset_class="equity", correlation=0.85),
+        CorrelationResult(symbol="EURUSD", asset_class="fx", correlation=None),
+        CorrelationResult(symbol="QQQ", asset_class="equity", correlation=0.6),
+    ]
+    response = _post(test_client, "AAPL CORR")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "CORR"
+    assert body["symbol"] == "AAPL"
+    assert body["asset_class"] == "equity"
+    symbols_in_order = [c["symbol"] for c in body["correlations"]]
+    # Descendente por correlación, los None (datos insuficientes) al final.
+    assert symbols_in_order == ["SPY", "QQQ", "GLD", "EURUSD"]
+    assert body["correlations"][-1]["correlation"] is None
+    assert registry.correlations_calls == ["AAPL"]
+
+
+def test_corr_all_insufficient_data_is_not_an_error(client) -> None:
+    """feat-15: mismo criterio que FA/NEWS — una cesta con todas las correlaciones a
+    `None` (símbolo con histórico insuficiente) es una respuesta 200 válida."""
+    test_client, registry, _ = client
+    registry.correlations_result = [
+        CorrelationResult(symbol="SPY", asset_class="equity", correlation=None),
+        CorrelationResult(symbol="BTC", asset_class="crypto", correlation=None),
+    ]
+    response = _post(test_client, "NEWCOIN CORR")
+    assert response.status_code == 200
+    body = response.json()
+    assert all(c["correlation"] is None for c in body["correlations"])
 
 
 # --- Comandos reconocidos pero no soportados por este endpoint -------------
