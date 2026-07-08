@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import httpx
 
-from app.models import Candle, NewsItem, Quote, SymbolMatch
+from app.models import Candle, NewsItem, Quote, ReportLink, SymbolMatch
 from app.providers.base import Provider
 from app.providers.crypto import CryptoProvider
 from tests.httpx_mock import mock_transport
@@ -19,6 +19,9 @@ def _make_provider() -> CryptoProvider:
             "/simple/price": "crypto_quote_bitcoin.json",
             "/ohlc": "crypto_ohlc_bitcoin.json",
             "/search": "crypto_search_bitcoin.json",
+            # Debe ir después de "/ohlc": "/coins/bitcoin" es prefijo de
+            # "/coins/bitcoin/ohlc", así que si fuera antes capturaría también esa ruta.
+            "/coins/bitcoin": "crypto_coin_bitcoin.json",
         }
     )
     client = httpx.Client(base_url="https://api.coingecko.com/api/v3", transport=transport)
@@ -78,3 +81,29 @@ def test_get_financials_all_fields_none() -> None:
     assert financials.market_cap is None
     assert financials.pe_ratio is None
     assert financials.sector is None
+
+
+def test_get_report_links_maps_real_links_filtering_empty_entries() -> None:
+    """feat-16: `homepage`/`blockchain_site` de CoinGecko son listas con huecos en
+    blanco (`["url", "", ""]`) — se toma la primera no vacía de cada una."""
+    provider = _make_provider()
+    links = provider.get_report_links("bitcoin")
+    assert all(isinstance(link, ReportLink) for link in links)
+    by_label = {link.label: link.url for link in links}
+    assert by_label["Sitio web oficial"] == "https://bitcoin.org/"
+    assert by_label["Explorador de blockchain"] == "https://blockchair.com/bitcoin"
+    assert by_label["Twitter/X"] == "https://twitter.com/bitcoin"
+
+
+def test_get_report_links_empty_when_project_has_no_links() -> None:
+    """feat-16: un proyecto sin ninguno de estos campos publicado devuelve `[]` — no
+    es un error."""
+    transport = mock_transport(
+        {
+            "/coins/nocoin": "crypto_coin_no_links.json",
+        }
+    )
+    client = httpx.Client(base_url="https://api.coingecko.com/api/v3", transport=transport)
+    provider = CryptoProvider(client=client)
+    links = provider.get_report_links("nocoin")
+    assert links == []

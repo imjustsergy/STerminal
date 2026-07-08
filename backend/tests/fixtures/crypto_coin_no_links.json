@@ -1,0 +1,15 @@
+{
+  "id": "nocoin",
+  "symbol": "noc",
+  "name": "No Links Coin",
+  "links": {
+    "homepage": ["", "", ""],
+    "blockchain_site": ["", "", ""],
+    "official_forum_url": ["", "", ""],
+    "chat_url": ["", "", ""],
+    "announcement_url": ["", ""],
+    "twitter_screen_name": "",
+    "facebook_username": "",
+    "subreddit_url": ""
+  }
+}

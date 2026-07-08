@@ -87,3 +87,13 @@ class CorrelationResult:
     symbol: str
     asset_class: str
     correlation: float | None
+
+
+@dataclass
+class ReportLink:
+    """Enlace externo a una fuente de reports/fundamentales de un símbolo (feat-16,
+    comando `REPORTS`). sterminal no aloja ni reprocesa el contenido — solo apunta a
+    dónde consultarlo (Yahoo Finance, SEC EDGAR, sitio del proyecto...)."""
+
+    label: str
+    url: str

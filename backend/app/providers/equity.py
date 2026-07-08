@@ -13,10 +13,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, Callable
+from urllib.parse import quote
 
 import yfinance as yf
 
-from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, ReportLink, SymbolMatch
 from app.providers._util import normalize_resolution
 
 # resolution normalizada -> kwargs de yfinance `Ticker.history()`.
@@ -121,3 +122,28 @@ class EquityProvider:
             sector=info.get("sector"),
             industry=info.get("industry"),
         )
+
+    def get_report_links(self, symbol: str) -> list[ReportLink]:
+        """Enlaces externos a fuentes de reports (feat-16) — sterminal no aloja ni
+        reprocesa estados financieros completos. Dos enlaces siempre presentes y
+        deterministas (no dependen de campos opcionales de `.info`, así que nunca
+        faltan): ficha de Yahoo Finance y búsqueda de filings en SEC EDGAR. Un tercer
+        enlace a la web oficial de la empresa se añade si `.info` lo trae."""
+        symbol_encoded = quote(symbol, safe="")
+        links = [
+            ReportLink(
+                label="Yahoo Finance",
+                url=f"https://finance.yahoo.com/quote/{symbol_encoded}",
+            ),
+            ReportLink(
+                label="SEC EDGAR — filings 10-K",
+                url=(
+                    "https://www.sec.gov/cgi-bin/browse-edgar"
+                    f"?action=getcompany&company={symbol_encoded}&type=10-K"
+                ),
+            ),
+        ]
+        website = self._ticker_factory(symbol).info.get("website")
+        if website:
+            links.append(ReportLink(label="Sitio web oficial", url=website))
+        return links

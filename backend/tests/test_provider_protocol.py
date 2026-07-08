@@ -1,4 +1,4 @@
-from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, ReportLink, SymbolMatch
 from app.providers.base import Provider
 
 
@@ -54,6 +54,9 @@ class StubProvider:
             industry=None,
         )
 
+    def get_report_links(self, symbol: str) -> list[ReportLink]:
+        return [ReportLink(label="label", url="https://example.com")]
+
 
 def test_provider_and_models_are_importable() -> None:
     assert Provider is not None
@@ -62,6 +65,7 @@ def test_provider_and_models_are_importable() -> None:
     assert SymbolMatch is not None
     assert NewsItem is not None
     assert Financials is not None
+    assert ReportLink is not None
 
 
 def test_stub_implements_provider_protocol() -> None:
@@ -76,3 +80,4 @@ def test_stub_methods_return_expected_types() -> None:
     assert all(isinstance(m, SymbolMatch) for m in stub.search("AAPL"))
     assert all(isinstance(n, NewsItem) for n in stub.get_news("AAPL"))
     assert isinstance(stub.get_financials("AAPL"), Financials)
+    assert all(isinstance(r, ReportLink) for r in stub.get_report_links("AAPL"))

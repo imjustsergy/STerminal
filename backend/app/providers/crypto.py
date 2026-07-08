@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, ReportLink, SymbolMatch
 from app.providers._util import normalize_resolution
 
 _BASE_URL = "https://api.coingecko.com/api/v3"
@@ -27,6 +27,15 @@ _RESOLUTION_TO_DAYS: dict[str, int] = {
     "1M": 30,
     "1Y": 365,
 }
+
+
+def _first_nonempty(values: list[str]) -> str | None:
+    """Primera cadena no vacía de `values`, o `None` si no hay ninguna (CoinGecko
+    devuelve listas con huecos en blanco para estos campos, ej. `["", "", "url"]`)."""
+    for value in values:
+        if value:
+            return value
+    return None
 
 
 class CryptoProvider:
@@ -119,3 +128,34 @@ class CryptoProvider:
             sector=None,
             industry=None,
         )
+
+    def get_report_links(self, symbol: str) -> list[ReportLink]:
+        """Enlaces reales del proyecto vía `GET /coins/{id}` de CoinGecko (feat-16) —
+        misma API pública que ya usa `get_history`/`search`. Puede devolver `[]` si el
+        proyecto no publica ninguno de estos campos, respuesta documentada, no un
+        error."""
+        response = self._client.get(
+            f"/coins/{symbol}",
+            params={
+                "localization": "false",
+                "tickers": "false",
+                "market_data": "false",
+                "community_data": "false",
+                "developer_data": "false",
+                "sparkline": "false",
+            },
+        )
+        response.raise_for_status()
+        coin_links = response.json().get("links", {})
+
+        links: list[ReportLink] = []
+        homepage = _first_nonempty(coin_links.get("homepage", []))
+        if homepage:
+            links.append(ReportLink(label="Sitio web oficial", url=homepage))
+        blockchain_site = _first_nonempty(coin_links.get("blockchain_site", []))
+        if blockchain_site:
+            links.append(ReportLink(label="Explorador de blockchain", url=blockchain_site))
+        twitter = coin_links.get("twitter_screen_name")
+        if twitter:
+            links.append(ReportLink(label="Twitter/X", url=f"https://twitter.com/{twitter}"))
+        return links

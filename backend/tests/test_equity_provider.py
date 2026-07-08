@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from app.models import Candle, NewsItem, Quote, SymbolMatch
+from app.models import Candle, NewsItem, Quote, ReportLink, SymbolMatch
 from app.providers.base import Provider
 from app.providers.equity import EquityProvider
 
@@ -128,3 +128,31 @@ def test_get_financials_missing_fields_default_to_none() -> None:
     assert financials.market_cap is None
     assert financials.dividend_yield is None
     assert financials.sector is None
+
+
+def test_get_report_links_includes_deterministic_and_website_links() -> None:
+    provider = _make_provider()
+    links = provider.get_report_links("AAPL")
+    assert all(isinstance(link, ReportLink) for link in links)
+    labels = {link.label for link in links}
+    assert "Yahoo Finance" in labels
+    assert "SEC EDGAR — filings 10-K" in labels
+    assert "Sitio web oficial" in labels
+    yahoo = next(link for link in links if link.label == "Yahoo Finance")
+    assert yahoo.url == "https://finance.yahoo.com/quote/AAPL"
+    website = next(link for link in links if link.label == "Sitio web oficial")
+    assert website.url == "https://www.apple.com"
+
+
+def test_get_report_links_omits_website_when_missing() -> None:
+    """No todos los símbolos traen `website` en `.info` — los dos enlaces
+    deterministas (Yahoo Finance, SEC EDGAR) nunca faltan, el tercero es opcional."""
+
+    class _SparseTicker:
+        def __init__(self, symbol: str) -> None:
+            self.info = {"symbol": symbol}
+
+    provider = EquityProvider(ticker_factory=_SparseTicker, search_factory=_FakeSearch)
+    links = provider.get_report_links("ZZZZ")
+    assert len(links) == 2
+    assert {link.label for link in links} == {"Yahoo Finance", "SEC EDGAR — filings 10-K"}
