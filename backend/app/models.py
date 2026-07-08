@@ -72,3 +72,18 @@ class Financials:
     beta: float | None
     sector: str | None
     industry: str | None
+
+
+@dataclass
+class CorrelationResult:
+    """Correlación de rendimientos diarios entre el símbolo consultado y una
+    referencia de la cesta (feat-15, comando `CORR`).
+
+    `correlation` es `None` cuando no hay suficientes fechas de cotización en común
+    entre ambos símbolos (mínimo 20) para que el coeficiente sea fiable — respuesta
+    documentada ("datos insuficientes"), no un error.
+    """
+
+    symbol: str
+    asset_class: str
+    correlation: float | None
