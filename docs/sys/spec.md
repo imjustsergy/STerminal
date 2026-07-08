@@ -568,6 +568,54 @@ verdad, no solo un visor de precios.
   devuelven `200` con todos los campos a `None`.
 - **Dependencias:** ninguna nueva.
 
+### feat-15 — Correlaciones de precio (comando `CORR`)
+
+Cuarta iteración del bucle post-MVP (score tras feat-14: 8/10). Lectura implementable
+de "dependencias de entrada/salida entre símbolos" pedida por el owner: un grafo real
+de cadena de suministro no tiene fuente de datos gratuita disponible, pero la
+correlación estadística de rendimientos sí se puede calcular con el histórico que ya
+tenemos (`Registry.get_history`, feat-2/feat-3) — qué activos se mueven junto al que
+se consulta (correlación positiva) o en sentido contrario (negativa).
+
+- **`app/correlation.py`** (nuevo, puro — sin red, sin `Registry`):
+  `compute_correlations(target_candles, reference_series)` calcula rendimientos
+  diarios (`% change` del `close`), alineados por fecha (`timestamp[:10]`, para poder
+  cruzar equity/crypto/fx que cotizan en calendarios distintos), y el coeficiente de
+  correlación de Pearson (cálculo manual, sin numpy). Menos de 20 fechas en común o
+  varianza cero en alguna serie → `correlation=None` ("datos insuficientes"), nunca
+  un `ZeroDivisionError`.
+- **`CorrelationResult`** (`backend/app/models.py`): `symbol`, `asset_class`,
+  `correlation: float | None`.
+- **`Registry._REFERENCE_UNIVERSE`**: cesta fija que cubre las tres clases de activo —
+  `SPY`/`QQQ`/`GLD` (equity/ETF), `BTC`/`ETH` (crypto), `EURUSD` (fx).
+  **`Registry.get_correlations(symbol, asset_class=None)`**: obtiene el histórico del
+  símbolo consultado (resolución `1M`) y el de cada referencia, delega el cálculo a
+  `correlation.py`. El símbolo consultado se excluye de su propia cesta si coincide
+  (`BTC CORR` no se correlaciona consigo mismo). Una referencia individual cuyo
+  histórico falle al obtenerse se omite — no rompe el comando entero por un fallo
+  puntual de un símbolo de la cesta. Cachea con el TTL de histórico diario (300s).
+- **`CommandType.CORR`** en el parser (`<SÍMBOLO> CORR`, exige símbolo). El símbolo de
+  cada referencia en la respuesta es siempre el ticker legible de la cesta (`"BTC"`,
+  no `"bitcoin"`) — a diferencia del bug corregido en feat-14, aquí se diseñó
+  correctamente desde el principio usando el ticker de `_REFERENCE_UNIVERSE` como
+  clave, no el símbolo interno traducido del provider.
+- `command_router.py` despacha a `_dispatch_correlations`, devuelve
+  `{"type": "CORR", "symbol", "asset_class", "correlations": [...]}` ordenado por
+  correlación descendente, con los `None` (datos insuficientes) al final. Una cesta
+  con todas las correlaciones a `None` es `200`, no "símbolo no encontrado" — mismo
+  criterio que FA/NEWS.
+- **`CorrelationsPanel.svelte`**: lista de la cesta de referencia con su coeficiente
+  (2 decimales, color por signo reutilizando `lib/format.ts::signColor`), "datos
+  insuficientes" explícito por fila cuando `correlation` es `null`.
+- Verificado en vivo contra yfinance/CoinGecko/frankfurter reales: `AAPL CORR`,
+  `BTC CORR` y `EURUSD CORR` devuelven correlaciones reales y coherentes (ej. `BTC`
+  correlaciona 0.89 con `ETH` en la ventana verificada); `EURUSD` como referencia
+  devuelve `None` con frecuencia frente a equity por tener menos fechas de cotización
+  en común en la ventana de 30 días — comportamiento esperado del umbral de 20 fechas
+  mínimas, no un bug.
+- **Dependencias:** ninguna nueva — sin librerías de terceros añadidas (Pearson
+  calculado a mano, sin numpy).
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
@@ -582,6 +630,7 @@ cripto vs. acción). Historial con ↑/↓ y autocompletado.
 | `BTC GP` | Gráfico de precio (Graph Price). |
 | `AAPL NEWS` | Noticias del activo. |
 | `AAPL FA` | Datos financieros: cap. de mercado, PER, BPA, dividendo, beta, sector. |
+| `AAPL CORR` | Correlación de rendimientos frente a una cesta de referencia fija. |
 | `PORT` | Cartera: posiciones, P&L, asignación. |
 | `WATCH` | Watchlist en vivo. |
 | `EURUSD` | Cotización forex. |
