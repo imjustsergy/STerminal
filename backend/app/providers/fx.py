@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, ReportLink, SymbolMatch
 from app.providers._util import normalize_resolution
 
 _BASE_URL = "https://api.frankfurter.dev/v1"
@@ -128,3 +128,8 @@ class FxProvider:
             sector=None,
             industry=None,
         )
+
+    def get_report_links(self, symbol: str) -> list[ReportLink]:
+        """No existe el concepto de "reports" para un par de divisas (feat-16) —
+        respuesta documentada, no un error, mismo criterio que `get_news`."""
+        return []

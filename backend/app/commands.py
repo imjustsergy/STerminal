@@ -27,6 +27,7 @@ class CommandType(str, Enum):
     NEWS = "NEWS"
     FA = "FA"
     CORR = "CORR"
+    REPORTS = "REPORTS"
     PORTFOLIO = "PORTFOLIO"
     WATCHLIST = "WATCHLIST"
     MOVERS = "MOVERS"
@@ -95,6 +96,7 @@ _SYMBOL_FUNCTIONS: dict[str, CommandType] = {
     "NEWS": CommandType.NEWS,
     "FA": CommandType.FA,
     "CORR": CommandType.CORR,
+    "REPORTS": CommandType.REPORTS,
 }
 
 # Funciones que no aceptan símbolo (`FUNCIÓN` a secas).

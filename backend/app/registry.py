@@ -19,7 +19,15 @@ from typing import Literal
 
 from app.cache import TTLCache
 from app.correlation import compute_correlations
-from app.models import Candle, CorrelationResult, Financials, NewsItem, Quote, SymbolMatch
+from app.models import (
+    Candle,
+    CorrelationResult,
+    Financials,
+    NewsItem,
+    Quote,
+    ReportLink,
+    SymbolMatch,
+)
 from app.providers._util import normalize_resolution
 from app.providers.base import Provider
 
@@ -249,6 +257,23 @@ class Registry:
         results = compute_correlations(target_candles, reference_series)
         self._cache.set(cache_key, results, HISTORY_DAILY_TTL_SECONDS)
         return results
+
+    def get_report_links(
+        self, symbol: str, asset_class: AssetClass | None = None
+    ) -> list[ReportLink]:
+        """Enlaces externos a fuentes de reports de `symbol` (feat-16). `[]` es una
+        respuesta documentada (fx siempre, crypto a veces si el proyecto no publica
+        ninguno), no un error. Mismo TTL que `get_news`/`get_financials`."""
+        resolved_class, internal_symbol = self.resolve(symbol, asset_class)
+        cache_key = ("report_links", resolved_class, internal_symbol)
+
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        links = self._provider_for(resolved_class).get_report_links(internal_symbol)
+        self._cache.set(cache_key, links, HISTORY_DAILY_TTL_SECONDS)
+        return links
 
     def search(self, query: str) -> list[SymbolMatch]:
         """Agrega resultados de búsqueda de los tres providers (equity, crypto, fx).

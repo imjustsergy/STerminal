@@ -57,6 +57,7 @@ bucle) → scoring del producto → siguiente feature.
 | 13 | Búsqueda de símbolos con autocompletado (`GET /search`, dropdown en CommandBar) | merged | feature-13-symbol-search | ver `docs/sys/scoring.md` |
 | 14 | Datos financieros (comando `FA`: cap. de mercado, PER, BPA, dividendo, beta, sector) | merged | feature-14-financials | ver `docs/sys/scoring.md` |
 | 15 | Correlaciones de precio (comando `CORR`: Pearson vs. cesta de referencia fija) | merged | feature-15-correlations | ver `docs/sys/scoring.md` |
+| 16 | Enlaces a reports (comando `REPORTS`: Yahoo Finance, SEC EDGAR, CoinGecko) | merged | feature-16-report-links | ver `docs/sys/scoring.md` |
 
 ## Fuera de alcance (ni del MVP ni del bucle post-MVP, salvo que se decida lo contrario)
 

@@ -77,6 +77,11 @@ export interface CorrelationResult {
   correlation: number | null;
 }
 
+export interface ReportLink {
+  label: string;
+  url: string;
+}
+
 export interface HelpEntry {
   usage: string;
   type: string;
@@ -134,6 +139,15 @@ export interface CorrelationsResponse {
   correlations: CorrelationResult[];
 }
 
+/** feat-16: `links` puede ser `[]` (fx siempre, crypto a veces) — no es un error,
+ * sterminal no aloja los reports, solo enlaza a fuentes externas reales. */
+export interface ReportsResponse {
+  type: 'REPORTS';
+  symbol: string;
+  asset_class: string;
+  links: ReportLink[];
+}
+
 /** Unión discriminada de todo lo que `POST /command` puede devolver con 200. */
 export type CommandResponse =
   | SummaryResponse
@@ -142,7 +156,8 @@ export type CommandResponse =
   | HelpResponse
   | NewsResponse
   | FinancialsResponse
-  | CorrelationsResponse;
+  | CorrelationsResponse
+  | ReportsResponse;
 
 /** Detalle de error tal cual lo construye `command_router.py::_data_error_detail`. */
 export interface CommandErrorDetail {

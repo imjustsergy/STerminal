@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import httpx
 
-from app.models import Candle, NewsItem, Quote, SymbolMatch
+from app.models import Candle, NewsItem, Quote, ReportLink, SymbolMatch
 from app.providers.base import Provider
 from app.providers.fx import FxProvider
 from tests.httpx_mock import mock_transport
@@ -93,3 +93,12 @@ def test_get_financials_all_fields_none() -> None:
     assert financials.market_cap is None
     assert financials.pe_ratio is None
     assert financials.sector is None
+
+
+def test_get_report_links_is_always_empty() -> None:
+    """feat-16: no existe el concepto de "reports" para un par de divisas —
+    respuesta documentada, no error."""
+    provider = _make_provider()
+    links = provider.get_report_links("EURUSD")
+    assert links == []
+    assert all(isinstance(link, ReportLink) for link in links)

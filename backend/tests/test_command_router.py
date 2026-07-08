@@ -12,7 +12,15 @@ from fastapi.testclient import TestClient
 
 from app.deps import get_portfolio_engine, get_registry
 from app.main import app
-from app.models import Candle, CorrelationResult, Financials, NewsItem, Quote, SymbolMatch
+from app.models import (
+    Candle,
+    CorrelationResult,
+    Financials,
+    NewsItem,
+    Quote,
+    ReportLink,
+    SymbolMatch,
+)
 from app.portfolio import Holding, PortfolioSummary
 
 
@@ -37,6 +45,8 @@ class FakeRegistry:
         self.financials_result: Financials | None = None
         self.correlations_calls: list[str] = []
         self.correlations_result: list[CorrelationResult] = []
+        self.report_links_calls: list[str] = []
+        self.report_links_result: list[ReportLink] = []
 
     def resolve(self, symbol: str, asset_class: str | None = None) -> tuple[str, str]:
         if asset_class is not None:
@@ -121,6 +131,12 @@ class FakeRegistry:
     ) -> list[CorrelationResult]:
         self.correlations_calls.append(symbol)
         return self.correlations_result
+
+    def get_report_links(
+        self, symbol: str, asset_class: str | None = None
+    ) -> list[ReportLink]:
+        self.report_links_calls.append(symbol)
+        return self.report_links_result
 
 
 class FakePortfolioEngine:
@@ -288,6 +304,7 @@ def test_help_lists_all_commands(client) -> None:
     assert "<SÍMBOLO> NEWS" in usages
     assert "<SÍMBOLO> FA" in usages
     assert "<SÍMBOLO> CORR" in usages
+    assert "<SÍMBOLO> REPORTS" in usages
     for entry in body["commands"]:
         assert entry["description"]
 
@@ -437,6 +454,40 @@ def test_corr_all_insufficient_data_is_not_an_error(client) -> None:
     assert response.status_code == 200
     body = response.json()
     assert all(c["correlation"] is None for c in body["correlations"])
+
+
+# --- REPORTS (feat-16) --------------------------------------------------------
+
+
+def test_reports_equity_returns_links(client) -> None:
+    test_client, registry, _ = client
+    registry.report_links_result = [
+        ReportLink(label="Yahoo Finance", url="https://finance.yahoo.com/quote/AAPL"),
+        ReportLink(
+            label="SEC EDGAR — filings 10-K",
+            url="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=AAPL&type=10-K",
+        ),
+    ]
+    response = _post(test_client, "AAPL REPORTS")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "REPORTS"
+    assert body["symbol"] == "AAPL"
+    assert body["asset_class"] == "equity"
+    assert len(body["links"]) == 2
+    assert body["links"][0]["label"] == "Yahoo Finance"
+    assert registry.report_links_calls == ["AAPL"]
+
+
+def test_reports_empty_list_is_not_an_error(client) -> None:
+    """feat-16: mismo criterio que NEWS/FA/CORR — `[]` (fx siempre, crypto a veces)
+    es una respuesta 200 válida, no "símbolo no encontrado"."""
+    test_client, registry, _ = client
+    response = _post(test_client, "EURUSD REPORTS")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["asset_class"] == "fx"
+    assert body["links"] == []
 
 
 # --- Comandos reconocidos pero no soportados por este endpoint -------------
