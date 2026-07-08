@@ -1,6 +1,13 @@
 import type { CommandResponse } from './types';
 
-export type PanelKind = 'summary' | 'graph_price' | 'portfolio' | 'help' | 'news' | 'unknown';
+export type PanelKind =
+  | 'summary'
+  | 'graph_price'
+  | 'portfolio'
+  | 'help'
+  | 'news'
+  | 'financials'
+  | 'unknown';
 
 /**
  * Mapea el campo `type` de una respuesta de `POST /command` al panel que debe
@@ -19,6 +26,8 @@ export function panelForType(type: string): PanelKind {
       return 'help';
     case 'NEWS':
       return 'news';
+    case 'FA':
+      return 'financials';
     default:
       return 'unknown';
   }
