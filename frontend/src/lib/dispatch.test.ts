@@ -11,6 +11,7 @@ describe('panelForType', () => {
     expect(panelForType('NEWS')).toBe('news');
     expect(panelForType('FA')).toBe('financials');
     expect(panelForType('CORR')).toBe('correlations');
+    expect(panelForType('REPORTS')).toBe('reports');
   });
 
   it('cae a "unknown" ante un type no reconocido, sin reventar', () => {

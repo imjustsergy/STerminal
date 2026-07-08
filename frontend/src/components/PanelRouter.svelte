@@ -9,6 +9,7 @@
   import FinancialsPanel from './panels/FinancialsPanel.svelte';
   import NewsPanel from './panels/NewsPanel.svelte';
   import PortfolioPanel from './panels/PortfolioPanel.svelte';
+  import ReportsPanel from './panels/ReportsPanel.svelte';
   import SummaryPanel from './panels/SummaryPanel.svelte';
   import WatchlistPanel from './panels/WatchlistPanel.svelte';
 
@@ -45,6 +46,7 @@
       <div><span class="acc">AAPL NEWS</span> <span class="dim">noticias del activo</span></div>
       <div><span class="acc">AAPL FA</span> <span class="dim">datos financieros</span></div>
       <div><span class="acc">AAPL CORR</span> <span class="dim">correlaciones de precio</span></div>
+      <div><span class="acc">AAPL REPORTS</span> <span class="dim">enlaces a reports</span></div>
       <div><span class="acc">PORT</span> <span class="dim">cartera</span></div>
       <div><span class="acc">WATCH</span> <span class="dim">watchlist en vivo</span></div>
       <div><span class="acc">HELP</span> <span class="dim">lista de comandos</span></div>
@@ -66,6 +68,8 @@
   <FinancialsPanel {response} />
 {:else if kind === 'correlations' && response?.type === 'CORR'}
   <CorrelationsPanel {response} />
+{:else if kind === 'reports' && response?.type === 'REPORTS'}
+  <ReportsPanel {response} />
 {:else if kind === 'watch'}
   <WatchlistPanel />
 {:else}
