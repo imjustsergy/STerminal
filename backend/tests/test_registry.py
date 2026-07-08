@@ -8,7 +8,7 @@ el mapeo símbolo→provider como que la caché evita reinvocarlo dentro del TTL
 from __future__ import annotations
 
 from app.cache import TTLCache
-from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
+from app.models import Candle, CorrelationResult, Financials, NewsItem, Quote, SymbolMatch
 from app.providers.base import Provider
 from app.registry import (
     HISTORY_DAILY_TTL_SECONDS,
@@ -40,6 +40,9 @@ class FakeProvider:
         self.search_calls: list[str] = []
         self.news_calls: list[str] = []
         self.financials_calls: list[str] = []
+        # feat-15: permite simular un fallo de red puntual en una referencia de la
+        # cesta de CORR, sin tocar el Registry real.
+        self.history_raises_for: set[str] = set()
 
     def get_quote(self, symbol: str) -> Quote:
         self.quote_calls.append(symbol)
@@ -54,6 +57,8 @@ class FakeProvider:
 
     def get_history(self, symbol: str, resolution: str) -> list[Candle]:
         self.history_calls.append((symbol, resolution))
+        if symbol in self.history_raises_for:
+            raise RuntimeError(f"fallo simulado obteniendo histórico de {symbol}")
         return [
             Candle(
                 timestamp="2026-07-07T00:00:00Z",
@@ -361,6 +366,70 @@ def test_get_financials_respects_asset_class_hint() -> None:
     registry.get_financials("BTC", asset_class="equity")
     assert equity.financials_calls == ["BTC"]
     assert crypto.financials_calls == []
+
+
+# --- get_correlations (feat-15) ---
+
+
+def test_get_correlations_queries_target_and_reference_universe() -> None:
+    registry, equity, crypto, fx = _make_registry()
+    registry.get_correlations("AAPL")
+    # AAPL (target) + SPY/QQQ/GLD (equity) = 4 llamadas a equity.get_history.
+    equity_symbols = {symbol for symbol, _ in equity.history_calls}
+    assert equity_symbols == {"AAPL", "SPY", "QQQ", "GLD"}
+    crypto_symbols = {symbol for symbol, _ in crypto.history_calls}
+    assert crypto_symbols == {"bitcoin", "ethereum"}
+    fx_symbols = {symbol for symbol, _ in fx.history_calls}
+    assert fx_symbols == {"EURUSD"}
+
+
+def test_get_correlations_uses_1m_resolution() -> None:
+    registry, equity, _, _ = _make_registry()
+    registry.get_correlations("AAPL")
+    assert all(resolution == "1M" for _, resolution in equity.history_calls)
+
+
+def test_get_correlations_returns_correlation_result_objects() -> None:
+    registry, *_ = _make_registry()
+    results = registry.get_correlations("AAPL")
+    assert all(isinstance(r, CorrelationResult) for r in results)
+    assert {r.symbol for r in results} == {"SPY", "QQQ", "GLD", "BTC", "ETH", "EURUSD"}
+
+
+def test_get_correlations_excludes_self_from_reference_universe() -> None:
+    """`BTC` está en la propia cesta de referencia — no debe correlacionarse consigo
+    mismo."""
+    registry, *_ = _make_registry()
+    results = registry.get_correlations("BTC")
+    assert "BTC" not in {r.symbol for r in results}
+    assert len(results) == 5
+
+
+def test_get_correlations_skips_reference_that_fails_without_raising() -> None:
+    registry, equity, _, _ = _make_registry()
+    equity.history_raises_for = {"QQQ"}
+    results = registry.get_correlations("AAPL")
+    assert "QQQ" not in {r.symbol for r in results}
+    assert "SPY" in {r.symbol for r in results}
+
+
+def test_get_correlations_is_served_from_cache_within_ttl() -> None:
+    clock = _FakeClock()
+    registry, equity, _, _ = _make_registry(clock)
+    registry.get_correlations("AAPL")
+    calls_after_first = len(equity.history_calls)
+    registry.get_correlations("AAPL")
+    assert len(equity.history_calls) == calls_after_first
+
+
+def test_get_correlations_refetches_after_ttl_expires() -> None:
+    clock = _FakeClock()
+    registry, equity, _, _ = _make_registry(clock)
+    registry.get_correlations("AAPL")
+    calls_after_first = len(equity.history_calls)
+    clock.advance(HISTORY_DAILY_TTL_SECONDS + 1)
+    registry.get_correlations("AAPL")
+    assert len(equity.history_calls) == 2 * calls_after_first
 
 
 # --- Desambiguación con hint también en get_quote/get_history ---
