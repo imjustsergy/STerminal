@@ -616,6 +616,46 @@ se consulta (correlación positiva) o en sentido contrario (negativa).
 - **Dependencias:** ninguna nueva — sin librerías de terceros añadidas (Pearson
   calculado a mano, sin numpy).
 
+### feat-16 — Enlaces a reports (comando `REPORTS`)
+
+Quinta iteración del bucle post-MVP (score tras feat-15: 8.5/10). Cierra el único
+punto explícito del objetivo original del owner que quedaba sin cubrir tras NEWS,
+búsqueda de símbolos, datos financieros y correlaciones. sterminal no aloja ni
+reprocesa estados financieros completos (balance, income statement, cash flow) — eso
+exigiría una fuente de datos que ningún provider gratuito ya integrado expone
+estructurada. Lo honesto y verificable: reunir en un panel los enlaces externos reales
+donde consultarlos.
+
+- **`ReportLink`** (`backend/app/models.py`): `label: str`, `url: str`.
+- **`Provider.get_report_links(symbol)`** añadido al `Protocol` (mismo patrón que
+  `get_news`/`get_financials`):
+  - `EquityProvider`: dos enlaces siempre presentes y deterministas (no dependen de
+    campos opcionales de `.info`) — ficha de Yahoo Finance y búsqueda de filings en
+    SEC EDGAR. Un tercer enlace a la web oficial se añade si `.info.get("website")`
+    está presente.
+  - `CryptoProvider`: nueva llamada real a `GET /coins/{id}` de CoinGecko (misma API
+    pública ya usada por `get_history`/`search`), mapea `links.homepage`/
+    `links.blockchain_site`/`links.twitter_screen_name` filtrando entradas vacías
+    (CoinGecko devuelve listas con huecos en blanco, ej. `["url", "", ""]`). Puede
+    devolver `[]` si el proyecto no publica ninguno — documentado, no un error.
+  - `FxProvider`: devuelve siempre `[]` — no existe el concepto de "reports" para un
+    par de divisas, mismo criterio que `get_news`.
+- **`Registry.get_report_links(symbol, asset_class=None)`**: mismo patrón de
+  resolución+caché que `get_news`/`get_financials` (TTL de histórico diario, 300s).
+- **`CommandType.REPORTS`** en el parser (`<SÍMBOLO> REPORTS`, exige símbolo).
+  `command_router.py` despacha a `_dispatch_report_links`, devuelve
+  `{"type": "REPORTS", "symbol", "asset_class", "links": [...]}`. `links: []` es
+  `200`, no "símbolo no encontrado" — mismo criterio que NEWS/FA/CORR.
+- **`ReportsPanel.svelte`**: lista de enlaces (`target="_blank"`), estado explícito
+  "sin enlaces disponibles" para listas vacías (fx siempre, crypto a veces), con nota
+  aclaratoria de que sterminal solo enlaza a fuentes externas, no aloja el contenido.
+- Verificado en vivo contra yfinance/CoinGecko/frankfurter reales: `AAPL REPORTS`
+  devuelve los tres enlaces (incluida la web oficial real de Apple), `BTC REPORTS`
+  devuelve enlaces reales de CoinGecko (sitio oficial, explorador de blockchain,
+  Twitter/X), `EURUSD REPORTS` devuelve `200` con `links: []`.
+- **Dependencias:** ninguna nueva — misma librería `httpx` ya usada por
+  `CryptoProvider`.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
@@ -631,6 +671,7 @@ cripto vs. acción). Historial con ↑/↓ y autocompletado.
 | `AAPL NEWS` | Noticias del activo. |
 | `AAPL FA` | Datos financieros: cap. de mercado, PER, BPA, dividendo, beta, sector. |
 | `AAPL CORR` | Correlación de rendimientos frente a una cesta de referencia fija. |
+| `AAPL REPORTS` | Enlaces externos a fuentes de reports (Yahoo Finance, SEC EDGAR...). |
 | `PORT` | Cartera: posiciones, P&L, asignación. |
 | `WATCH` | Watchlist en vivo. |
 | `EURUSD` | Cotización forex. |

@@ -134,3 +134,40 @@ original que queda sin cubrir. A partir de aquí el resto de mejoras hacia 9/10
 probablemente vengan de pulir lo ya construido (UX de navegación entre paneles
 relacionados — ej. saltar de `CORR` a `FA` del símbolo correlacionado con un clic) más
 que de features nuevas grandes.
+
+### Tras feat-16 (comando REPORTS — enlaces a reports) — 2026-07-08
+
+**Score: 9/10**
+
+- **Funcionalidad (9/10):** cierra el último punto explícito del objetivo original del
+  owner (NEWS, búsqueda de símbolos, dependencias de entrada/salida vía correlaciones,
+  datos financieros, enlaces a reports — los cinco están cubiertos). No se inventó un
+  parser de estados financieros completos que ningún provider gratuito expone
+  estructurado — se optó por la solución honesta: enlazar a las fuentes reales donde
+  consultarlos (Yahoo Finance, SEC EDGAR para equity; sitio oficial, explorador de
+  blockchain, Twitter/X para crypto vía una nueva llamada real a CoinGecko). Lo que
+  queda pendiente para un 10/10 ya no son features nuevas del objetivo original, sino
+  pulido: navegación cruzada entre paneles relacionados (saltar de `CORR` a `FA` del
+  símbolo correlacionado con un clic), cesta de referencia de `CORR` configurable,
+  resolución intradía real para `GP`.
+- **UX (9/10):** mismo patrón visual ya establecido (lista de enlaces, `target="_blank"`,
+  estado vacío explícito) — cero curva de aprendizaje nueva para el usuario que ya
+  conoce NEWS. Nota aclaratoria en el panel de que sterminal solo enlaza, no aloja el
+  contenido — evita la falsa expectativa de que los reports completos estén "dentro".
+- **Calidad de datos (9/10):** los dos enlaces de equity son deterministas y siempre
+  correctos (URLs construidas, no dependen de un campo que pueda faltar); el enlace a
+  la web oficial y los tres de crypto son datos reales verificados en vivo (la web
+  oficial de Apple, bitcoin.org, el explorador de blockchain real de CoinGecko). Fx
+  devuelve `[]` siempre, documentado — ningún dato inventado en ningún caso.
+- **Robustez (9/10):** 246 tests backend + 72 tests frontend, build limpio, verificado
+  en vivo contra las tres clases de activo (equity con y sin `website`, crypto con
+  enlaces reales, fx vacío) antes de mergear. Un proyecto crypto sin ninguno de los
+  campos publicados devuelve `[]` sin reventar (testeado con fixture dedicada).
+
+**Qué falta para subir el score:** con las cinco piezas del objetivo original cubiertas,
+lo que separa de un 10/10 es refinamiento incremental más que features grandes —
+navegación cruzada entre paneles (ej. clicar un símbolo de la cesta de `CORR` para
+abrir su propio panel), posible resolución intradía real para `GP` (hoy la más fina es
+diaria), y pulido general de UX tras varias iteraciones de features nuevas seguidas.
+Con el objetivo explícito del owner ya cubierto en su totalidad, el bucle se considera
+satisfecho en 9/10.
