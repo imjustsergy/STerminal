@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-from app.models import Candle, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
 from app.providers._util import normalize_resolution
 
 _BASE_URL = "https://api.coingecko.com/api/v3"
@@ -103,3 +103,19 @@ class CryptoProvider:
 
     def get_news(self, symbol: str) -> list[NewsItem]:
         return []
+
+    def get_financials(self, symbol: str) -> Financials:
+        """CoinGecko no expone ratios financieros tradicionales (feat-14) — respuesta
+        documentada con todos los campos opcionales a `None`, no un error."""
+        return Financials(
+            symbol=symbol,
+            market_cap=None,
+            pe_ratio=None,
+            eps=None,
+            dividend_yield=None,
+            week52_high=None,
+            week52_low=None,
+            beta=None,
+            sector=None,
+            industry=None,
+        )

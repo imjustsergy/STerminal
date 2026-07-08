@@ -9,6 +9,7 @@ describe('panelForType', () => {
     expect(panelForType('PORTFOLIO')).toBe('portfolio');
     expect(panelForType('HELP')).toBe('help');
     expect(panelForType('NEWS')).toBe('news');
+    expect(panelForType('FA')).toBe('financials');
   });
 
   it('cae a "unknown" ante un type no reconocido, sin reventar', () => {

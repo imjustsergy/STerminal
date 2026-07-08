@@ -82,3 +82,14 @@ def test_get_news_is_empty_list() -> None:
     news = provider.get_news("EURUSD")
     assert news == []
     assert all(isinstance(n, NewsItem) for n in news)
+
+
+def test_get_financials_all_fields_none() -> None:
+    """feat-14: un par de divisas no tiene ratios financieros — respuesta
+    documentada, no error."""
+    provider = _make_provider()
+    financials = provider.get_financials("EURUSD")
+    assert financials.symbol == "EURUSD"
+    assert financials.market_cap is None
+    assert financials.pe_ratio is None
+    assert financials.sector is None

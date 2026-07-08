@@ -97,3 +97,34 @@ def test_get_news_returns_news_items() -> None:
     assert all(isinstance(n, NewsItem) for n in news)
     assert news[0].source == "Yahoo Finance Video"
     assert news[0].url.startswith("https://finance.yahoo.com/")
+
+
+def test_get_financials_maps_fields_from_info() -> None:
+    provider = _make_provider()
+    financials = provider.get_financials("AAPL")
+    assert financials.symbol == "AAPL"
+    assert financials.market_cap == 4562774130688
+    assert financials.pe_ratio == 37.655758
+    assert financials.eps == 8.25
+    assert financials.dividend_yield == 0.35
+    assert financials.week52_high == 317.4
+    assert financials.week52_low == 201.5
+    assert financials.beta == 1.097
+    assert financials.sector == "Technology"
+    assert financials.industry == "Consumer Electronics"
+
+
+def test_get_financials_missing_fields_default_to_none() -> None:
+    """No todos los símbolos tienen todos los datos (ej. sin dividendo) — `.get()`
+    defensivo, no debe reventar."""
+
+    class _SparseTicker:
+        def __init__(self, symbol: str) -> None:
+            self.info = {"symbol": symbol}
+
+    provider = EquityProvider(ticker_factory=_SparseTicker, search_factory=_FakeSearch)
+    financials = provider.get_financials("ZZZZ")
+    assert financials.symbol == "ZZZZ"
+    assert financials.market_cap is None
+    assert financials.dividend_yield is None
+    assert financials.sector is None

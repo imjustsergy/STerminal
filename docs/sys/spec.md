@@ -533,6 +533,41 @@ dependencias/correlaciones entre símbolos — hace falta poder encontrarlos pri
   (yfinance + CoinGecko) en una sola lista.
 - **Dependencias:** ninguna nueva.
 
+### feat-14 — Datos financieros (comando `FA`)
+
+Tercera iteración del bucle post-MVP (score tras feat-13: 7/10). Añade el ratio de
+fundamentales que le falta a sterminal para sentirse como un terminal financiero de
+verdad, no solo un visor de precios.
+
+- **`Financials`** (`backend/app/models.py`): nuevo tipo de dominio — `symbol`,
+  `market_cap`, `pe_ratio`, `eps`, `dividend_yield`, `week52_high`, `week52_low`,
+  `beta`, `sector`, `industry`, todos `float | None`/`str | None` salvo `symbol`.
+- **`Provider.get_financials(symbol)`** añadido al `Protocol` (mismo patrón que
+  `get_news`): `EquityProvider` lee más campos de `Ticker.info` (ya se leía para
+  `get_quote`); `CryptoProvider`/`FxProvider` devuelven un `Financials` con todos los
+  campos opcionales a `None` — respuesta documentada, no un error (ninguna API
+  gratuita de cripto/fx que ya usamos expone fundamentales).
+- **`Registry.get_financials(symbol, asset_class=None)`**: mismo patrón de
+  resolución+caché que `get_news`, TTL de histórico diario (300s).
+- **`CommandType.FA`** en el parser (`<SÍMBOLO> FA`, exige símbolo — igual que
+  `GP`/`NEWS`). `command_router.py` despacha a `_dispatch_financials`, devuelve
+  `{"type": "FA", "symbol", "asset_class", "financials": {...}}`. Un `Financials` con
+  todos los campos `None` (crypto/fx) es `200`, no "símbolo no encontrado" — mismo
+  criterio que NEWS, distinto de SUMMARY/GRAPH_PRICE.
+- **`FinancialsPanel.svelte`**: grid de métricas con formato por campo (moneda
+  compacta — `$4.56T` — para market cap, `x` para PER, `%` para dividendo/beta),
+  "no disponible" campo a campo cuando el valor es `None` — nunca una pantalla vacía
+  ni un mensaje genérico para todo el panel.
+- **Bug real corregido en pruebas en vivo** (mismo patrón que la corrección de WATCH
+  en feat-7): `Financials.symbol` devolvía el símbolo interno del provider
+  (`"bitcoin"` para `BTC`) en vez del que pidió el cliente — `_dispatch_financials`
+  ahora sobreescribe `financials["symbol"]` con `command.symbol`, igual que
+  `_quote_payload` en `stream_router.py`.
+- Verificado en vivo contra yfinance/CoinGecko reales: `AAPL FA` devuelve
+  fundamentales reales (cap. de mercado, PER, sector...), `BTC FA`/`EURUSD FA`
+  devuelven `200` con todos los campos a `None`.
+- **Dependencias:** ninguna nueva.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
@@ -546,6 +581,7 @@ cripto vs. acción). Historial con ↑/↓ y autocompletado.
 | `AAPL` | Panel de resumen del activo (precio, gráfico, stats). |
 | `BTC GP` | Gráfico de precio (Graph Price). |
 | `AAPL NEWS` | Noticias del activo. |
+| `AAPL FA` | Datos financieros: cap. de mercado, PER, BPA, dividendo, beta, sector. |
 | `PORT` | Cartera: posiciones, P&L, asignación. |
 | `WATCH` | Watchlist en vivo. |
 | `EURUSD` | Cotización forex. |

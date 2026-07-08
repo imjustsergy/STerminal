@@ -58,6 +58,19 @@ export interface NewsItem {
   published_at: string;
 }
 
+export interface Financials {
+  symbol: string;
+  market_cap: number | null;
+  pe_ratio: number | null;
+  eps: number | null;
+  dividend_yield: number | null;
+  week52_high: number | null;
+  week52_low: number | null;
+  beta: number | null;
+  sector: string | null;
+  industry: string | null;
+}
+
 export interface HelpEntry {
   usage: string;
   type: string;
@@ -97,13 +110,23 @@ export interface NewsResponse {
   items: NewsItem[];
 }
 
+/** feat-14: `financials` con todos los campos a `null` para crypto/fx — no es un
+ * error, es el dato real (solo equity tiene ratios financieros). */
+export interface FinancialsResponse {
+  type: 'FA';
+  symbol: string;
+  asset_class: string;
+  financials: Financials;
+}
+
 /** Unión discriminada de todo lo que `POST /command` puede devolver con 200. */
 export type CommandResponse =
   | SummaryResponse
   | GraphPriceResponse
   | PortfolioResponse
   | HelpResponse
-  | NewsResponse;
+  | NewsResponse
+  | FinancialsResponse;
 
 /** Detalle de error tal cual lo construye `command_router.py::_data_error_detail`. */
 export interface CommandErrorDetail {

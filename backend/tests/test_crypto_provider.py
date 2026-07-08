@@ -68,3 +68,13 @@ def test_get_news_is_empty_list() -> None:
     news = provider.get_news("bitcoin")
     assert news == []
     assert all(isinstance(n, NewsItem) for n in news)
+
+
+def test_get_financials_all_fields_none() -> None:
+    """feat-14: CoinGecko no expone ratios financieros — respuesta documentada, no error."""
+    provider = _make_provider()
+    financials = provider.get_financials("bitcoin")
+    assert financials.symbol == "bitcoin"
+    assert financials.market_cap is None
+    assert financials.pe_ratio is None
+    assert financials.sector is None

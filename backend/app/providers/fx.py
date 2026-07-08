@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from app.models import Candle, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
 from app.providers._util import normalize_resolution
 
 _BASE_URL = "https://api.frankfurter.dev/v1"
@@ -112,3 +112,19 @@ class FxProvider:
 
     def get_news(self, symbol: str) -> list[NewsItem]:
         return []
+
+    def get_financials(self, symbol: str) -> Financials:
+        """Un par de divisas no tiene ratios financieros (feat-14) — respuesta
+        documentada con todos los campos opcionales a `None`, no un error."""
+        return Financials(
+            symbol=symbol,
+            market_cap=None,
+            pe_ratio=None,
+            eps=None,
+            dividend_yield=None,
+            week52_high=None,
+            week52_low=None,
+            beta=None,
+            sector=None,
+            industry=None,
+        )
