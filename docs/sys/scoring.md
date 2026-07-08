@@ -63,3 +63,34 @@ financieros y correlaciones, luego reports.
 falta para sentir el producto "completo" como terminal financiero) y/o dependencias de
 entrada/salida entre símbolos — evaluar cuál aporta más UX real en la siguiente
 iteración.
+
+### Tras feat-14 (comando FA — datos financieros) — 2026-07-08
+
+**Score: 8/10**
+
+- **Funcionalidad (8/10):** ya se cubren fundamentales reales de equity (cap. de
+  mercado, PER, BPA, dividendo, rango 52 semanas, beta, sector/industria) — la pieza
+  que más faltaba para sentir sterminal como un terminal financiero, no solo un visor
+  de precios. Sigue faltando: dependencias de entrada/salida entre símbolos,
+  correlaciones, enlaces a reports (estados financieros completos) — todo fuera de
+  alcance explícito de esta feature.
+- **UX (8/10):** grid claro de métricas con formato apropiado por campo (moneda
+  compacta, `x`, `%`), "no disponible" campo a campo en vez de una pantalla vacía —
+  crypto/fx muestran el mismo grid con aviso explícito de por qué está vacío, en vez
+  de un error o un panel distinto. Consistente con el patrón de NEWS (feat-12).
+- **Calidad de datos (8/10):** fundamentales reales de yfinance, verificados en vivo
+  contra AAPL con valores concretos y razonables. Al verificar en vivo se encontró y
+  corrigió un bug real (mismo patrón que la corrección de WATCH en feat-7):
+  `financials.symbol` devolvía el id interno del provider en vez del símbolo pedido
+  por el cliente — la disciplina de "verificar contra APIs reales antes de mergear"
+  sigue demostrando su valor, ya van dos bugs de identidad de símbolo encontrados así
+  y ninguno detectado por los fakes de test (que por diseño no simulaban la
+  traducción interna hasta que se corrigió tras el hallazgo).
+- **Robustez (8/10):** 208 tests backend (incluyendo la regresión del bug de símbolo
+  encontrado) + 66 tests frontend, build limpio, verificado en vivo tanto antes como
+  después del fix contra yfinance/CoinGecko/frankfurter reales.
+
+**Qué falta para subir el score:** dependencias de entrada/salida entre símbolos y
+correlaciones — quedan como las piezas más grandes del objetivo original sin cubrir;
+probablemente la siguiente iteración, ya que ambas reutilizan la base de búsqueda de
+símbolos (feat-13) para encontrar los símbolos relacionados a mostrar.
