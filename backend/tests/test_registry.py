@@ -8,7 +8,15 @@ el mapeo símbolo→provider como que la caché evita reinvocarlo dentro del TTL
 from __future__ import annotations
 
 from app.cache import TTLCache
-from app.models import Candle, CorrelationResult, Financials, NewsItem, Quote, SymbolMatch
+from app.models import (
+    Candle,
+    CorrelationResult,
+    Financials,
+    NewsItem,
+    Quote,
+    ReportLink,
+    SymbolMatch,
+)
 from app.providers.base import Provider
 from app.registry import (
     HISTORY_DAILY_TTL_SECONDS,
@@ -40,6 +48,7 @@ class FakeProvider:
         self.search_calls: list[str] = []
         self.news_calls: list[str] = []
         self.financials_calls: list[str] = []
+        self.report_links_calls: list[str] = []
         # feat-15: permite simular un fallo de red puntual en una referencia de la
         # cesta de CORR, sin tocar el Registry real.
         self.history_raises_for: set[str] = set()
@@ -99,6 +108,10 @@ class FakeProvider:
             sector=self.asset_class,
             industry=self.asset_class,
         )
+
+    def get_report_links(self, symbol: str) -> list[ReportLink]:
+        self.report_links_calls.append(symbol)
+        return [ReportLink(label=f"fuente de {self.asset_class}", url=f"https://example.com/{symbol}")]
 
 
 def _make_registry(clock: _FakeClock | None = None) -> tuple[Registry, FakeProvider, FakeProvider, FakeProvider]:
@@ -430,6 +443,53 @@ def test_get_correlations_refetches_after_ttl_expires() -> None:
     clock.advance(HISTORY_DAILY_TTL_SECONDS + 1)
     registry.get_correlations("AAPL")
     assert len(equity.history_calls) == 2 * calls_after_first
+
+
+# --- get_report_links (feat-16) ---
+
+
+def test_get_report_links_routes_to_correct_provider() -> None:
+    registry, equity, crypto, _ = _make_registry()
+    registry.get_report_links("AAPL")
+    assert equity.report_links_calls == ["AAPL"]
+    assert crypto.report_links_calls == []
+
+
+def test_get_report_links_translates_crypto_symbol() -> None:
+    registry, _, crypto, _ = _make_registry()
+    registry.get_report_links("BTC")
+    assert crypto.report_links_calls == ["bitcoin"]
+
+
+def test_get_report_links_returns_provider_data() -> None:
+    registry, *_ = _make_registry()
+    links = registry.get_report_links("AAPL")
+    assert all(isinstance(link, ReportLink) for link in links)
+    assert links[0].url == "https://example.com/AAPL"
+
+
+def test_get_report_links_is_served_from_cache_within_ttl() -> None:
+    clock = _FakeClock()
+    registry, equity, _, _ = _make_registry(clock)
+    registry.get_report_links("AAPL")
+    registry.get_report_links("AAPL")
+    assert equity.report_links_calls == ["AAPL"]
+
+
+def test_get_report_links_refetches_after_ttl_expires() -> None:
+    clock = _FakeClock()
+    registry, equity, _, _ = _make_registry(clock)
+    registry.get_report_links("AAPL")
+    clock.advance(HISTORY_DAILY_TTL_SECONDS + 1)
+    registry.get_report_links("AAPL")
+    assert equity.report_links_calls == ["AAPL", "AAPL"]
+
+
+def test_get_report_links_respects_asset_class_hint() -> None:
+    registry, equity, crypto, _ = _make_registry()
+    registry.get_report_links("BTC", asset_class="equity")
+    assert equity.report_links_calls == ["BTC"]
+    assert crypto.report_links_calls == []
 
 
 # --- Desambiguación con hint también en get_quote/get_history ---
