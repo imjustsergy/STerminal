@@ -1,4 +1,4 @@
-from app.models import Candle, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
 from app.providers.base import Provider
 
 
@@ -40,6 +40,20 @@ class StubProvider:
             )
         ]
 
+    def get_financials(self, symbol: str) -> Financials:
+        return Financials(
+            symbol=symbol,
+            market_cap=None,
+            pe_ratio=None,
+            eps=None,
+            dividend_yield=None,
+            week52_high=None,
+            week52_low=None,
+            beta=None,
+            sector=None,
+            industry=None,
+        )
+
 
 def test_provider_and_models_are_importable() -> None:
     assert Provider is not None
@@ -47,6 +61,7 @@ def test_provider_and_models_are_importable() -> None:
     assert Candle is not None
     assert SymbolMatch is not None
     assert NewsItem is not None
+    assert Financials is not None
 
 
 def test_stub_implements_provider_protocol() -> None:
@@ -60,3 +75,4 @@ def test_stub_methods_return_expected_types() -> None:
     assert all(isinstance(c, Candle) for c in stub.get_history("AAPL", "1D"))
     assert all(isinstance(m, SymbolMatch) for m in stub.search("AAPL"))
     assert all(isinstance(n, NewsItem) for n in stub.get_news("AAPL"))
+    assert isinstance(stub.get_financials("AAPL"), Financials)

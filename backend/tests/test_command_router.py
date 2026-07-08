@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.deps import get_portfolio_engine, get_registry
 from app.main import app
-from app.models import Candle, NewsItem, Quote, SymbolMatch
+from app.models import Candle, Financials, NewsItem, Quote, SymbolMatch
 from app.portfolio import Holding, PortfolioSummary
 
 
@@ -33,6 +33,8 @@ class FakeRegistry:
         self.history_result: list[Candle] | None = None
         self.news_calls: list[str] = []
         self.news_result: list[NewsItem] = []
+        self.financials_calls: list[str] = []
+        self.financials_result: Financials | None = None
 
     def resolve(self, symbol: str, asset_class: str | None = None) -> tuple[str, str]:
         if asset_class is not None:
@@ -94,6 +96,23 @@ class FakeRegistry:
     def get_news(self, symbol: str, asset_class: str | None = None) -> list[NewsItem]:
         self.news_calls.append(symbol)
         return self.news_result
+
+    def get_financials(self, symbol: str, asset_class: str | None = None) -> Financials:
+        self.financials_calls.append(symbol)
+        if self.financials_result is not None:
+            return self.financials_result
+        return Financials(
+            symbol=symbol,
+            market_cap=None,
+            pe_ratio=None,
+            eps=None,
+            dividend_yield=None,
+            week52_high=None,
+            week52_low=None,
+            beta=None,
+            sector=None,
+            industry=None,
+        )
 
 
 class FakePortfolioEngine:
@@ -259,6 +278,7 @@ def test_help_lists_all_commands(client) -> None:
     assert "HELP" in usages
     assert "<SÍMBOLO> GP" in usages
     assert "<SÍMBOLO> NEWS" in usages
+    assert "<SÍMBOLO> FA" in usages
     for entry in body["commands"]:
         assert entry["description"]
 
@@ -304,6 +324,47 @@ def test_news_crypto_empty_list_is_not_an_error(client) -> None:
     body = response.json()
     assert body["asset_class"] == "crypto"
     assert body["items"] == []
+
+
+# --- FA (feat-14) ------------------------------------------------------------
+
+
+def test_fa_equity_returns_financials(client) -> None:
+    test_client, registry, _ = client
+    registry.financials_result = Financials(
+        symbol="AAPL",
+        market_cap=4562774130688,
+        pe_ratio=37.655758,
+        eps=8.25,
+        dividend_yield=0.35,
+        week52_high=317.4,
+        week52_low=201.5,
+        beta=1.097,
+        sector="Technology",
+        industry="Consumer Electronics",
+    )
+    response = _post(test_client, "AAPL FA")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "FA"
+    assert body["symbol"] == "AAPL"
+    assert body["asset_class"] == "equity"
+    assert body["financials"]["market_cap"] == 4562774130688
+    assert body["financials"]["pe_ratio"] == 37.655758
+    assert body["financials"]["sector"] == "Technology"
+    assert registry.financials_calls == ["AAPL"]
+
+
+def test_fa_crypto_all_none_is_not_an_error(client) -> None:
+    """feat-14: mismo criterio que NEWS — un `Financials` con todos los campos a
+    `None` es una respuesta 200 válida para crypto/fx, no "símbolo no encontrado"."""
+    test_client, registry, _ = client
+    response = _post(test_client, "BTC FA")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["asset_class"] == "crypto"
+    assert body["financials"]["market_cap"] is None
+    assert body["financials"]["sector"] is None
 
 
 # --- Comandos reconocidos pero no soportados por este endpoint -------------

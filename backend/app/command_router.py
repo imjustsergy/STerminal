@@ -66,6 +66,7 @@ _COMMAND_DESCRIPTIONS: dict[CommandType, str] = {
     CommandType.SUMMARY: "Resumen de activo: cotización y clase de activo (equity/crypto/fx).",
     CommandType.GRAPH_PRICE: "Gráfico de precio: histórico OHLC del símbolo.",
     CommandType.NEWS: "Noticias del activo (solo equity tiene datos reales, feat-12).",
+    CommandType.FA: "Datos financieros: cap. de mercado, PER, BPA, dividendo, beta, sector (feat-14).",
     CommandType.PORTFOLIO: "Cartera: posiciones agregadas, P&L y asignación.",
     CommandType.WATCHLIST: "Watchlist en vivo (ver WebSocket /stream, feature 7).",
     CommandType.MOVERS: "Mayores subidas/bajadas del día (fuera de alcance del MVP).",
@@ -195,6 +196,21 @@ def _dispatch_news(command: Command, registry: Registry) -> dict[str, Any]:
     }
 
 
+def _dispatch_financials(command: Command, registry: Registry) -> dict[str, Any]:
+    """feat-14. Mismo criterio que `_dispatch_news`: un `Financials` con todos los
+    campos a `None` (crypto/fx, sin ratios financieros) es una respuesta 200 válida y
+    documentada, no "símbolo no encontrado" — a diferencia de SUMMARY/GRAPH_PRICE."""
+    assert command.symbol is not None  # garantizado por parse_command para FA
+    asset_class, _internal_symbol = registry.resolve(command.symbol)
+    financials = registry.get_financials(command.symbol)
+    return {
+        "type": CommandType.FA.value,
+        "symbol": command.symbol,
+        "asset_class": asset_class,
+        "financials": dataclasses.asdict(financials),
+    }
+
+
 def _dispatch(
     command: Command,
     registry: Registry,
@@ -211,6 +227,8 @@ def _dispatch(
         return _dispatch_help()
     if command.type == CommandType.NEWS:
         return _dispatch_news(command, registry)
+    if command.type == CommandType.FA:
+        return _dispatch_financials(command, registry)
     # WATCHLIST / MOVERS: reconocidos por el parser, no ejecutables aquí.
     raise UnsupportedCommandError(
         _UNSUPPORTED_MESSAGES.get(
