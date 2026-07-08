@@ -199,15 +199,23 @@ def _dispatch_news(command: Command, registry: Registry) -> dict[str, Any]:
 def _dispatch_financials(command: Command, registry: Registry) -> dict[str, Any]:
     """feat-14. Mismo criterio que `_dispatch_news`: un `Financials` con todos los
     campos a `None` (crypto/fx, sin ratios financieros) es una respuesta 200 válida y
-    documentada, no "símbolo no encontrado" — a diferencia de SUMMARY/GRAPH_PRICE."""
+    documentada, no "símbolo no encontrado" — a diferencia de SUMMARY/GRAPH_PRICE.
+
+    Bug real detectado en pruebas en vivo (mismo patrón que `_quote_payload` en
+    `stream_router.py`): `Financials.symbol` es el símbolo INTERNO del provider (ej.
+    `"bitcoin"` para `CryptoProvider`), no el que pidió el cliente (`"BTC"`) — se
+    sobreescribe aquí para que la respuesta sea consistente con el `symbol` de nivel
+    superior."""
     assert command.symbol is not None  # garantizado por parse_command para FA
     asset_class, _internal_symbol = registry.resolve(command.symbol)
     financials = registry.get_financials(command.symbol)
+    financials_payload = dataclasses.asdict(financials)
+    financials_payload["symbol"] = command.symbol
     return {
         "type": CommandType.FA.value,
         "symbol": command.symbol,
         "asset_class": asset_class,
-        "financials": dataclasses.asdict(financials),
+        "financials": financials_payload,
     }
 
 

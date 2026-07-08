@@ -367,6 +367,31 @@ def test_fa_crypto_all_none_is_not_an_error(client) -> None:
     assert body["financials"]["sector"] is None
 
 
+def test_fa_translated_symbol_is_reported_as_the_requested_symbol(client) -> None:
+    """Regresión (detectado en pruebas en vivo, mismo patrón que la regresión de WATCH
+    en `test_stream_router.py`): `Registry.get_financials("BTC")` devuelve un
+    `Financials` cuyo campo `symbol` es el id interno del provider (`"bitcoin"`), no lo
+    que pidió el cliente. La respuesta debe llevar `"BTC"` en `financials.symbol`."""
+    test_client, registry, _ = client
+    registry.financials_result = Financials(
+        symbol="bitcoin",
+        market_cap=None,
+        pe_ratio=None,
+        eps=None,
+        dividend_yield=None,
+        week52_high=None,
+        week52_low=None,
+        beta=None,
+        sector=None,
+        industry=None,
+    )
+    response = _post(test_client, "BTC FA")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["symbol"] == "BTC"
+    assert body["financials"]["symbol"] == "BTC"
+
+
 # --- Comandos reconocidos pero no soportados por este endpoint -------------
 
 
