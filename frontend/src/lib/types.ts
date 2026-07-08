@@ -71,6 +71,12 @@ export interface Financials {
   industry: string | null;
 }
 
+export interface CorrelationResult {
+  symbol: string;
+  asset_class: string;
+  correlation: number | null;
+}
+
 export interface HelpEntry {
   usage: string;
   type: string;
@@ -119,6 +125,15 @@ export interface FinancialsResponse {
   financials: Financials;
 }
 
+/** feat-15: `correlation` puede ser `null` por fila cuando hay menos de 20 fechas de
+ * cotización en común con la referencia — "datos insuficientes", no un error. */
+export interface CorrelationsResponse {
+  type: 'CORR';
+  symbol: string;
+  asset_class: string;
+  correlations: CorrelationResult[];
+}
+
 /** Unión discriminada de todo lo que `POST /command` puede devolver con 200. */
 export type CommandResponse =
   | SummaryResponse
@@ -126,7 +141,8 @@ export type CommandResponse =
   | PortfolioResponse
   | HelpResponse
   | NewsResponse
-  | FinancialsResponse;
+  | FinancialsResponse
+  | CorrelationsResponse;
 
 /** Detalle de error tal cual lo construye `command_router.py::_data_error_detail`. */
 export interface CommandErrorDetail {
