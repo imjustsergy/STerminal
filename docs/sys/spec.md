@@ -805,6 +805,48 @@ motor existía, faltaba la última capa (parser + router).
   confirmarse (extensión Claude-in-Chrome desconectada, mismo problema que feat-18).
 - **Dependencias:** ninguna nueva.
 
+### feat-20 — Watchlist personalizable (comandos `WATCH ADD`/`WATCH REMOVE`)
+
+Décima iteración del bucle post-MVP. Nuevo objetivo del bucle: desarrollar features
+interesantes y mejorar UI/UX de forma continua (distinto de la fase de auditoría
+anterior). La tabla `watchlist` (`symbol`, `sort_order`) existe en el esquema SQLite
+desde feat-1 — ningún código la usaba hasta esta feature. La watchlist real de la app
+era `DEFAULT_WATCHLIST`, una lista fija hardcodeada, documentada explícitamente como
+"fuera de alcance del MVP".
+
+- **`backend/app/watchlist_store.py`** (nuevo): `WatchlistStore` sobre la tabla
+  `watchlist` ya existente — `list_symbols`, `add_symbol` (idempotente),
+  `remove_symbol` (idempotente), `seed_defaults_if_empty` (siembra los 7 símbolos de
+  siempre solo si la tabla está vacía, para no romper la experiencia de quien
+  actualiza).
+- **`GET /watchlist`** (nuevo router, mismo patrón que `GET /search` de feat-13):
+  `{"symbols": [...]}`. `WatchlistPanel.svelte` lo consulta al montarse en vez de
+  importar `DEFAULT_WATCHLIST`.
+- **`WATCH ADD <SÍMBOLO>`/`WATCH REMOVE <SÍMBOLO>`** — segunda excepción documentada
+  a la sintaxis de máximo 2 tokens (mismo patrón que `PORT ADD` de feat-19).
+  `command_router.py` despacha a `WatchlistStore`, devuelve la lista completa
+  actualizada en la misma respuesta.
+- Frontend: `WatchlistPanel.svelte` carga la watchlist real al montarse y se
+  resuscribe al WebSocket ya abierto con la lista nueva (sin reconectar —
+  `stream_router.py` ya soportaba resuscribir sobre la misma conexión desde feat-7).
+  Botón "×" por fila para quitar un símbolo sin teclear el comando completo (mismo
+  patrón de interacción por click que feat-18). `'watch'` pasa a ser un `PanelKind`
+  real en `dispatch.ts` (antes vivía como caso especial fuera del tipo) —
+  `WATCHLIST_ADD`/`WATCHLIST_REMOVE` resuelven a él de forma consistente con el
+  resto de comandos. `App.svelte` fuerza el remount de `WatchlistPanel` (vía
+  `{#key watchlistVersion}` en `PanelRouter`) cuando `WATCH ADD`/`REMOVE` se teclea
+  en la barra de comando mientras el panel ya está abierto.
+- De paso: `scripts/preview-server.sh` arranca el backend con `uvicorn --reload`
+  (acotado a `backend/app/` vía `--reload-dir`) — petición directa del owner para no
+  tener que parar/relanzar el preview a mano en cada merge.
+- Verificado en vivo, esta vez con confirmación visual completa en navegador real
+  (Tailscale, extensión Claude-in-Chrome reconectada): `WATCH ADD MSFT` tecleado en
+  la barra de comando añade el símbolo y el panel se remonta solo mostrando su
+  cotización real en vivo; el botón "×" quita una fila al instante. Contra SQLite
+  real (no mock): persistencia confirmada entre peticiones separadas, `WATCH ADD`/
+  `WATCH REMOVE` idempotentes verificados por `curl`.
+- **Dependencias:** ninguna nueva.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
@@ -825,6 +867,8 @@ cripto vs. acción). Historial con ↑/↓ y autocompletado.
 | `PORT` | Cartera: posiciones, P&L, asignación. |
 | `PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>` | Añade un lote de compra a la cartera. |
 | `WATCH` | Watchlist en vivo. |
+| `WATCH ADD <SÍMBOLO>` | Añade un símbolo a la watchlist persistida. |
+| `WATCH REMOVE <SÍMBOLO>` | Quita un símbolo de la watchlist persistida. |
 | `EURUSD` | Cotización forex. |
 | `MOVERS` | Mayores subidas/bajadas del día. |
 | `HELP` | Lista de comandos. |

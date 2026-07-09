@@ -381,3 +381,56 @@ seguir ampliando el lenguaje de comandos (`PORT EDIT`/`PORT DELETE`, ya con moto
 existente en `portfolio.py` desde feat-6, mismo patrón que esta feature) o si el
 bucle de auditoría se da por satisfecho aquí. Mergeado directo a `main` sin PR, según
 instrucción explícita del owner para este bucle.
+
+---
+
+## Cuarto objetivo del bucle — features interesantes + mejora continua de UX (2026-07-09)
+
+> Objetivo nuevo: "desarrollar nuevas features que sean interesantes, mejorar la UI y
+> UX para que el sistema se mejore cada vez más". Sin PR — merge directo a `main`
+> para este bucle (instrucción explícita del owner, igual que el objetivo anterior).
+> Mismo criterio de honestidad de siempre.
+
+### Tras feat-20 (comando WATCH ADD/REMOVE — watchlist personalizable) — 2026-07-09
+
+**Score: 9/10**
+
+- **Funcionalidad (9/10):** cierra otro candidato "a medias" real — la tabla
+  `watchlist` existía en el esquema SQLite desde feat-1, nunca la usaba ningún
+  código; la watchlist real de la app era una lista fija hardcodeada,
+  explícitamente marcada "fuera de alcance del MVP". Segunda excepción documentada
+  a la sintaxis de máximo 2 tokens (mismo patrón que `PORT ADD` de feat-19),
+  `add_symbol`/`remove_symbol` idempotentes. `GET /watchlist` sigue el mismo patrón
+  ya establecido que `GET /search` (feat-13) para lecturas fuera del lenguaje de
+  comandos.
+- **UX (9/10):** botón "×" por fila para quitar un símbolo sin teclear el comando
+  completo — mismo espíritu de interacción por click que la navegación cruzada de
+  feat-18. `WATCH ADD` tecleado en la barra de comando mientras el panel ya está
+  abierto lo remonta solo (`watchlistVersion` + `{#key}`), sin que el owner tenga
+  que volver a escribir `WATCH` a mano para ver el símbolo nuevo. De paso, `'watch'`
+  deja de ser un caso especial fuera del sistema de tipos (`PanelKind`) — limpieza
+  real, no solo funcionalidad nueva.
+- **Calidad de datos (9/10):** cada cotización de la watchlist sigue siendo real y
+  en vivo vía el WebSocket ya existente (feat-7) — esta feature solo cambia de dónde
+  sale la *lista* de símbolos (persistida vs. hardcodeada), no la calidad de los
+  datos de cada uno.
+- **Robustez (9/10):** 324 tests backend (17 nuevos: `WatchlistStore` con SQLite
+  real en `:memory:` **y** con fichero real reabierto — prueba de persistencia
+  genuina entre "reinicios", no solo un mock — más parser y router) + 89 tests
+  frontend, `svelte-check` sin errores, build limpio. **Verificación en vivo
+  completa esta vez, incluyendo navegador real**: la extensión Claude-in-Chrome
+  reconectó a mitad de la feature — se confirmó visualmente que `WATCH ADD MSFT`
+  tecleado añade el símbolo y el panel se remonta solo con su cotización real, y que
+  el botón "×" quita una fila al instante. Contra SQLite real (no mock):
+  persistencia, idempotencia de `add`/`remove`, y sintaxis inválida verificadas por
+  `curl` antes de la confirmación visual.
+
+**Qué falta para subir más allá de 9/10 limpio:** de propina en esta iteración se
+atendió una petición directa del owner fuera del alcance original de la feature —
+`scripts/preview-server.sh` ahora arranca el backend con `--reload`, así que futuras
+integraciones a `main` no requieren parar/relanzar el preview a mano. Candidatos para
+la siguiente iteración del bucle (mismo espíritu "interesante + UX"): reordenar la
+watchlist (arrastrar filas, ya hay `sort_order` en el esquema), `PORT EDIT`/`PORT
+DELETE` sobre el motor ya existente en `portfolio.py`, o explorar una feature
+genuinamente nueva en vez de completar otra pieza a medias. Mergeado directo a
+`main` sin PR, según instrucción explícita del owner para este bucle.
