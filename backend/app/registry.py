@@ -27,9 +27,11 @@ from app.models import (
     Quote,
     ReportLink,
     SymbolMatch,
+    ValueChain,
 )
 from app.providers._util import normalize_resolution
 from app.providers.base import Provider
+from app.value_chain import value_chain_symbols
 
 AssetClass = Literal["equity", "crypto", "fx"]
 
@@ -274,6 +276,52 @@ class Registry:
         links = self._provider_for(resolved_class).get_report_links(internal_symbol)
         self._cache.set(cache_key, links, HISTORY_DAILY_TTL_SECONDS)
         return links
+
+    def get_value_chain(
+        self, symbol: str, asset_class: AssetClass | None = None
+    ) -> ValueChain:
+        """Mapa de cadena de valor de `symbol` (feat-17, comando `MAP`): cotización del
+        nodo central + materias primas de entrada/sectores de salida vía la taxonomía
+        curada de `app.value_chain`, cada uno con su cotización real en vivo. Un proxy
+        individual que falle al cotizar se omite sin romper el mapa completo — mismo
+        criterio que `get_correlations` (feat-15). Mismo TTL que
+        `get_news`/`get_financials`."""
+        resolved_class, internal_symbol = self.resolve(symbol, asset_class)
+        cache_key = ("value_chain", resolved_class, internal_symbol)
+
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        center = self.get_quote(symbol, asset_class)
+        financials = self.get_financials(symbol, asset_class)
+        input_symbols, output_symbols = value_chain_symbols(financials.sector)
+
+        def _quotes(symbols: list[str]) -> list[Quote]:
+            quotes: list[Quote] = []
+            for proxy_symbol in symbols:
+                try:
+                    quote = self.get_quote(proxy_symbol, "equity")
+                except Exception:
+                    continue
+                if quote.price == 0.0:
+                    # Mismo criterio que _dispatch_summary: precio 0.0 es la señal de
+                    # "ticker sin datos reales" que ya produce EquityProvider en vez de
+                    # lanzar — un proxy de la taxonomía curada nunca debería darse este
+                    # caso (son ETFs líquidos reales), pero si pasara, se omite en vez
+                    # de mostrar un nodo con precio 0.
+                    continue
+                quotes.append(quote)
+            return quotes
+
+        value_chain = ValueChain(
+            sector=financials.sector,
+            center=center,
+            inputs=_quotes(input_symbols),
+            outputs=_quotes(output_symbols),
+        )
+        self._cache.set(cache_key, value_chain, HISTORY_DAILY_TTL_SECONDS)
+        return value_chain
 
     def search(self, query: str) -> list[SymbolMatch]:
         """Agrega resultados de búsqueda de los tres providers (equity, crypto, fx).

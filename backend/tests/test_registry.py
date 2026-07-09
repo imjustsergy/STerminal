@@ -16,6 +16,7 @@ from app.models import (
     Quote,
     ReportLink,
     SymbolMatch,
+    ValueChain,
 )
 from app.providers.base import Provider
 from app.registry import (
@@ -52,12 +53,21 @@ class FakeProvider:
         # feat-15: permite simular un fallo de red puntual en una referencia de la
         # cesta de CORR, sin tocar el Registry real.
         self.history_raises_for: set[str] = set()
+        # feat-17: permiten simular un proxy de la taxonomía de MAP que falla al
+        # cotizar, y un sector GICS concreto (en vez del fijo self.asset_class), sin
+        # tocar el Registry real.
+        self.quote_raises_for: set[str] = set()
+        self.quote_zero_price_for: set[str] = set()
+        self.financials_sector: str | None = asset_class
 
     def get_quote(self, symbol: str) -> Quote:
         self.quote_calls.append(symbol)
+        if symbol in self.quote_raises_for:
+            raise RuntimeError(f"fallo simulado obteniendo cotización de {symbol}")
+        price = 0.0 if symbol in self.quote_zero_price_for else 1.0
         return Quote(
             symbol=symbol,
-            price=1.0,
+            price=price,
             currency="USD",
             change=0.0,
             change_percent=0.0,
@@ -105,7 +115,7 @@ class FakeProvider:
             week52_high=1.0,
             week52_low=1.0,
             beta=1.0,
-            sector=self.asset_class,
+            sector=self.financials_sector,
             industry=self.asset_class,
         )
 
@@ -490,6 +500,82 @@ def test_get_report_links_respects_asset_class_hint() -> None:
     registry.get_report_links("BTC", asset_class="equity")
     assert equity.report_links_calls == ["BTC"]
     assert crypto.report_links_calls == []
+
+
+# --- get_value_chain (feat-17) ---
+
+
+def test_get_value_chain_unmapped_sector_returns_empty_inputs_outputs() -> None:
+    """El FakeProvider por defecto informa sector="equity" (no un sector GICS real) —
+    no tiene mapeo curado, así que inputs/outputs deben quedar vacíos, no reventar."""
+    registry, equity, _, _ = _make_registry()
+    value_chain = registry.get_value_chain("AAPL")
+    assert isinstance(value_chain, ValueChain)
+    assert value_chain.sector == "equity"
+    assert value_chain.inputs == []
+    assert value_chain.outputs == []
+    assert value_chain.center.symbol == "AAPL"
+
+
+def test_get_value_chain_mapped_sector_fetches_real_proxy_quotes() -> None:
+    registry, equity, _, _ = _make_registry()
+    equity.financials_sector = "Technology"
+    value_chain = registry.get_value_chain("AAPL")
+    assert value_chain.sector == "Technology"
+    assert {q.symbol for q in value_chain.inputs} == {"SOXX", "CPER"}
+    assert {q.symbol for q in value_chain.outputs} == {"XLY"}
+    assert "SOXX" in equity.quote_calls
+    assert "CPER" in equity.quote_calls
+    assert "XLY" in equity.quote_calls
+
+
+def test_get_value_chain_none_sector_returns_empty_inputs_outputs() -> None:
+    """crypto/fx: Financials.sector es None (feat-14) — sin taxonomía GICS."""
+    registry, _, crypto, _ = _make_registry()
+    crypto.financials_sector = None
+    value_chain = registry.get_value_chain("BTC")
+    assert value_chain.sector is None
+    assert value_chain.inputs == []
+    assert value_chain.outputs == []
+
+
+def test_get_value_chain_skips_proxy_that_raises_without_failing_the_whole_map() -> None:
+    registry, equity, _, _ = _make_registry()
+    equity.financials_sector = "Technology"
+    equity.quote_raises_for = {"SOXX"}
+    value_chain = registry.get_value_chain("AAPL")
+    input_symbols = {q.symbol for q in value_chain.inputs}
+    assert "SOXX" not in input_symbols
+    assert "CPER" in input_symbols
+
+
+def test_get_value_chain_skips_proxy_with_zero_price() -> None:
+    registry, equity, _, _ = _make_registry()
+    equity.financials_sector = "Energy"
+    equity.quote_zero_price_for = {"OIH"}
+    value_chain = registry.get_value_chain("XOM")
+    assert value_chain.inputs == []
+
+
+def test_get_value_chain_is_served_from_cache_within_ttl() -> None:
+    clock = _FakeClock()
+    registry, equity, _, _ = _make_registry(clock)
+    equity.financials_sector = "Technology"
+    registry.get_value_chain("AAPL")
+    calls_after_first = len(equity.quote_calls)
+    registry.get_value_chain("AAPL")
+    assert len(equity.quote_calls) == calls_after_first
+
+
+def test_get_value_chain_refetches_after_ttl_expires() -> None:
+    clock = _FakeClock()
+    registry, equity, _, _ = _make_registry(clock)
+    equity.financials_sector = "Technology"
+    registry.get_value_chain("AAPL")
+    calls_after_first = len(equity.quote_calls)
+    clock.advance(HISTORY_DAILY_TTL_SECONDS + 1)
+    registry.get_value_chain("AAPL")
+    assert len(equity.quote_calls) == 2 * calls_after_first
 
 
 # --- Desambiguación con hint también en get_quote/get_history ---
