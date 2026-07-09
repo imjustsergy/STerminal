@@ -847,6 +847,58 @@ era `DEFAULT_WATCHLIST`, una lista fija hardcodeada, documentada explícitamente
   `WATCH REMOVE` idempotentes verificados por `curl`.
 - **Dependencias:** ninguna nueva.
 
+### feat-21 — Proveedor Alpha Vantage + encender/apagar providers desde el terminal
+
+Undécima iteración del bucle post-MVP, segunda de la fase "features interesantes +
+mejora continua de UX". Petición directa del owner: añadir Alpha Vantage como fuente
+alternativa de datos de acciones y poder alternar el proveedor activo desde la barra
+de comando, para comparar cuál va mejor.
+
+- **`backend/app/providers/alphavantage.py`** (nuevo): `AlphaVantageProvider`,
+  implementación completa del `Protocol Provider` contra la API REST gratuita de
+  Alpha Vantage (`GLOBAL_QUOTE`, `TIME_SERIES_DAILY`, `SYMBOL_SEARCH`,
+  `NEWS_SENTIMENT`, `OVERVIEW`). Detecta la respuesta de rate-limit del free tier
+  (`200` con clave `"Note"`/`"Information"` en vez de datos) y la traduce en un
+  error claro. `get_report_links` reutiliza los mismos enlaces deterministas de
+  `EquityProvider` (Yahoo Finance/SEC EDGAR) — no dependen de ningún endpoint de
+  Alpha Vantage.
+- **API key nunca hardcodeada**: se lee de la variable de entorno
+  `ALPHAVANTAGE_API_KEY` en `main.py` (mismo patrón que `STERMINAL_DB_PATH`).
+  `backend/.env` (gitignored, nunca versionado) guarda la key real;
+  `backend/.env.example` es la plantilla versionada. `python-dotenv` (nueva
+  dependencia) la carga automáticamente al arrancar.
+- **`Registry`**: mecanismo aditivo de proveedores alternativos por clase de
+  activo — `register_provider`, `list_providers`, `set_active_provider`. El
+  constructor de `Registry` no cambia (retrocompatible con todo el código/tests
+  existentes) — el provider de siempre de cada clase queda bajo el nombre
+  reservado `"default"`; cualquier alternativo se registra aparte y no se activa
+  solo. Alpha Vantage se registra para `equity` en `main.py` solo si
+  `ALPHAVANTAGE_API_KEY` está presente, y nunca queda activo por defecto.
+- **`PROVIDERS`** (comando sin símbolo): lista los proveedores disponibles por
+  clase de activo y cuál está activo en cada una. **`PROVIDERS SET <CLASE>
+  <PROVEEDOR>`** — tercera excepción documentada a la sintaxis de máximo 2
+  tokens (mismo patrón que `PORT ADD`/`WATCH ADD`), ej. `PROVIDERS SET EQUITY
+  ALPHAVANTAGE` / `PROVIDERS SET EQUITY DEFAULT`. Cambia el proveedor activo en
+  caliente, sin reiniciar el backend.
+- Frontend: `ProvidersPanel.svelte` — tabla por clase de activo con el proveedor
+  activo resaltado y un botón "activar" por cada uno inactivo, que envía
+  `PROVIDERS SET` y refresca con la respuesta ya actualizada (sin segunda
+  petición). `'providers'` es un `PanelKind` real en `dispatch.ts`. El panel se
+  remonta (`{#key response}`) si `PROVIDERS`/`PROVIDERS SET` se vuelve a teclear
+  con el panel ya abierto.
+- Verificado en vivo contra la API real de Alpha Vantage con la key del owner:
+  `PROVIDERS SET EQUITY ALPHAVANTAGE` + `AAPL`/`AAPL FA` confirmados con datos
+  reales (`market_cap`, `pe_ratio`, `sector` de Alpha Vantage `OVERVIEW`). El
+  cambio de proveedor se confirmó inequívocamente por el formato del
+  `timestamp` (Alpha Vantage no da timestamp por cotización, se usa
+  `datetime.now()` con microsegundos; yfinance da el timestamp real de mercado)
+  — distinto entre ambos proveedores en la misma sesión. Confirmación visual
+  completa en navegador real: tabla de proveedores, botón "activar" funcionando,
+  y `AAPL` mostrando el timestamp de microsegundos de Alpha Vantage tras
+  activarlo.
+- **Dependencias:** `python-dotenv` (nueva, mínima, justificada por evitar que
+  el owner tenga que exportar la API key a mano en cada sesión).
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
@@ -869,6 +921,8 @@ cripto vs. acción). Historial con ↑/↓ y autocompletado.
 | `WATCH` | Watchlist en vivo. |
 | `WATCH ADD <SÍMBOLO>` | Añade un símbolo a la watchlist persistida. |
 | `WATCH REMOVE <SÍMBOLO>` | Quita un símbolo de la watchlist persistida. |
+| `PROVIDERS` | Proveedores de datos disponibles y cuál está activo. |
+| `PROVIDERS SET <CLASE> <PROVEEDOR>` | Cambia el proveedor activo de una clase de activo. |
 | `EURUSD` | Cotización forex. |
 | `MOVERS` | Mayores subidas/bajadas del día. |
 | `HELP` | Lista de comandos. |

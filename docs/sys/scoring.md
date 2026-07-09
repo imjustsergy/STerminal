@@ -434,3 +434,52 @@ watchlist (arrastrar filas, ya hay `sort_order` en el esquema), `PORT EDIT`/`POR
 DELETE` sobre el motor ya existente en `portfolio.py`, o explorar una feature
 genuinamente nueva en vez de completar otra pieza a medias. Mergeado directo a
 `main` sin PR, según instrucción explícita del owner para este bucle.
+
+### Tras feat-21 (proveedor Alpha Vantage + PROVIDERS/PROVIDERS SET) — 2026-07-10
+
+**Score: 9/10**
+
+- **Funcionalidad (9/10):** cumple los dos pedidos explícitos del owner — nueva
+  fuente de datos (Alpha Vantage, `GLOBAL_QUOTE`/`TIME_SERIES_DAILY`/
+  `SYMBOL_SEARCH`/`NEWS_SENTIMENT`/`OVERVIEW`) y poder encenderla/apagarla desde el
+  terminal. El mecanismo de `Registry` es genuinamente extensible — no es un
+  bolt-on solo para Alpha Vantage: `register_provider`/`list_providers`/
+  `set_active_provider` sirven para cualquier proveedor futuro de cualquier clase
+  de activo, sin tocar el constructor ni romper compatibilidad con feat-1..20.
+  Tercera excepción documentada a la sintaxis de máximo 2 tokens
+  (`PROVIDERS SET <CLASE> <PROVEEDOR>`), mismo patrón que `PORT ADD`/`WATCH ADD`.
+- **UX (9/10):** tabla clara por clase de activo con el proveedor activo
+  resaltado y un botón "activar" por cada inactivo — no hace falta memorizar la
+  sintaxis de `PROVIDERS SET` para el caso de uso más común (encenderlo desde el
+  panel, igual que el botón "×" de `WATCH` en feat-20). El cambio de proveedor
+  responde en la misma petición, sin refrescar nada aparte.
+- **Calidad de datos (9/10):** cotizaciones/fundamentales reales de la API real de
+  Alpha Vantage con la key del owner, no simulados. Limitación documentada, no
+  oculta: el free tier de Alpha Vantage solo da velas diarias (`get_history`
+  ignora la resolución pedida) y tiene un límite de peticiones diario agresivo —
+  ambas cosas están explícitas en el docstring del provider, no descubiertas por
+  sorpresa en producción.
+- **Robustez (9/10):** 354 tests backend (30 nuevos: `AlphaVantageProvider` con
+  fixtures reales grabadas contra la API real, incluyendo el caso de rate-limit;
+  mecanismo de proveedores alternativos de `Registry`; parser y router de
+  `PROVIDERS`/`PROVIDERS SET`) + 93 tests frontend, `svelte-check` sin errores,
+  build limpio. **Seguridad de la API key verificada, no solo asumida**: `git
+  check-ignore -v backend/.env` confirmado antes del primer commit,
+  `git log --all -- backend/.env` confirmado vacío tras cada commit — la key
+  nunca entró en el historial de git. Verificación en vivo completa contra la API
+  real de Alpha Vantage (cuidando el rate limit del free tier: ~10 llamadas
+  reales en total entre grabar fixtures y verificar en vivo) y confirmación
+  visual en navegador real: tabla de proveedores, botón "activar" cambiando el
+  estado en directo, y `AAPL` mostrando el timestamp de microsegundos
+  característico de Alpha Vantage tras activarlo (yfinance da el timestamp real
+  de mercado, sin microsegundos — la diferencia de formato prueba
+  inequívocamente que el proveedor activo cambió de verdad, no solo que la
+  respuesta cambió de forma). El owner confirmó en vivo ("funciona
+  correctamente") tras probar el flujo completo en su propia sesión.
+
+**Qué falta para subir más allá de 9/10 limpio:** decidir si vale la pena
+persistir el proveedor activo entre reinicios del backend (hoy vuelve a
+`"default"` cada arranque, decisión YAGNI documentada en la spec) y si conviene
+añadir un segundo proveedor alternativo de verdad (crypto/fx) para que el
+mecanismo de `Registry` deje de tener un único caso de uso real. Mergeado directo
+a `main` sin PR, según instrucción explícita del owner para este bucle.
