@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/svelte';
 import ValueChainPanel from './ValueChainPanel.svelte';
 import type { ValueChainResponse } from '../../lib/types';
@@ -43,7 +43,7 @@ function baseResponse(overrides: Partial<ValueChainResponse> = {}): ValueChainRe
 
 describe('ValueChainPanel', () => {
   it('renderiza el mindmap: nodo central + nodos de entrada/salida como SVG conectado', () => {
-    const { container } = render(ValueChainPanel, { response: baseResponse() });
+    const { container } = render(ValueChainPanel, { response: baseResponse(), onNavigate: vi.fn() });
 
     const svg = container.querySelector('svg.mindmap');
     expect(svg).not.toBeNull();
@@ -63,7 +63,7 @@ describe('ValueChainPanel', () => {
   });
 
   it('renderiza una leyenda con la descripción de cada nodo (feedback del owner)', () => {
-    const { getByText } = render(ValueChainPanel, { response: baseResponse() });
+    const { getByText } = render(ValueChainPanel, { response: baseResponse(), onNavigate: vi.fn() });
 
     expect(getByText(/ETF de semiconductores/)).toBeInTheDocument();
     expect(getByText(/ETF de cobre/)).toBeInTheDocument();
@@ -71,13 +71,13 @@ describe('ValueChainPanel', () => {
   });
 
   it('muestra el sector en la cabecera cuando está presente', () => {
-    const { getByText } = render(ValueChainPanel, { response: baseResponse() });
+    const { getByText } = render(ValueChainPanel, { response: baseResponse(), onNavigate: vi.fn() });
     expect(getByText('Technology')).toBeInTheDocument();
   });
 
   it('muestra un estado vacío explícito cuando el sector no tiene mapeo curado', () => {
     const response = baseResponse({ sector: 'Financial Services', inputs: [], outputs: [] });
-    const { getByText, queryByText } = render(ValueChainPanel, { response });
+    const { getByText, queryByText } = render(ValueChainPanel, { response, onNavigate: vi.fn() });
 
     expect(getByText(/sin mapeo de cadena de valor definido/)).toBeInTheDocument();
     expect(queryByText('ERROR')).not.toBeInTheDocument();
@@ -99,15 +99,43 @@ describe('ValueChainPanel', () => {
         timestamp: '2026-07-07T00:00:00Z',
       },
     });
-    const { getByText, queryByText } = render(ValueChainPanel, { response });
+    const { getByText, queryByText } = render(ValueChainPanel, { response, onNavigate: vi.fn() });
 
     expect(getByText(/sin taxonomía de sector/)).toBeInTheDocument();
     expect(queryByText('ERROR')).not.toBeInTheDocument();
   });
 
   it('muestra el símbolo del nodo central', () => {
-    const { container } = render(ValueChainPanel, { response: baseResponse() });
+    const { container } = render(ValueChainPanel, { response: baseResponse(), onNavigate: vi.fn() });
     const centerText = container.querySelector('svg .center-node .node-symbol');
     expect(centerText?.textContent).toBe('AAPL');
+  });
+
+  it('feat-18: clicar un nodo de entrada/salida en la leyenda navega a ese símbolo', () => {
+    const onNavigate = vi.fn();
+    const { getByText } = render(ValueChainPanel, { response: baseResponse(), onNavigate });
+
+    getByText(/ETF de semiconductores/).closest('button')?.click();
+    expect(onNavigate).toHaveBeenCalledWith('SOXX');
+  });
+
+  it('feat-18: clicar un nodo del SVG (no el central) navega a ese símbolo', () => {
+    const onNavigate = vi.fn();
+    const { container } = render(ValueChainPanel, { response: baseResponse(), onNavigate });
+
+    const clickableNodes = container.querySelectorAll('svg .node.clickable');
+    expect(clickableNodes.length).toBe(3); // 2 inputs + 1 output, no el centro
+
+    const cperNode = Array.from(clickableNodes).find((el) =>
+      el.querySelector('.node-symbol')?.textContent === 'CPER'
+    );
+    cperNode?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onNavigate).toHaveBeenCalledWith('CPER');
+  });
+
+  it('feat-18: el nodo central no es clicable', () => {
+    const { container } = render(ValueChainPanel, { response: baseResponse(), onNavigate: vi.fn() });
+    const centerNode = container.querySelector('svg .center-node');
+    expect(centerNode?.classList.contains('clickable')).toBe(false);
   });
 });

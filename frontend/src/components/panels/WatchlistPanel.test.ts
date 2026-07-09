@@ -43,7 +43,7 @@ describe('WatchlistPanel', () => {
   });
 
   it('abre una conexión y se suscribe a la watchlist por defecto al conectar', () => {
-    render(WatchlistPanel);
+    render(WatchlistPanel, { onNavigate: vi.fn() });
     expect(FakeWebSocket.instances).toHaveLength(1);
 
     const ws = FakeWebSocket.instances[0];
@@ -54,7 +54,7 @@ describe('WatchlistPanel', () => {
   });
 
   it('reconecta automáticamente tras RECONNECT_DELAY_MS al desconectarse', () => {
-    render(WatchlistPanel);
+    render(WatchlistPanel, { onNavigate: vi.fn() });
     const ws = FakeWebSocket.instances[0];
     ws.onopen?.();
 
@@ -66,7 +66,7 @@ describe('WatchlistPanel', () => {
   });
 
   it('muestra el banner de stale antes de conectar, y lo retira al conectar (feat-11)', async () => {
-    const { getByText, queryByText } = render(WatchlistPanel);
+    const { getByText, queryByText } = render(WatchlistPanel, { onNavigate: vi.fn() });
     expect(getByText('⚠ EN CACHÉ')).toBeInTheDocument();
 
     const ws = FakeWebSocket.instances[0];
@@ -78,7 +78,7 @@ describe('WatchlistPanel', () => {
   });
 
   it('vuelve a mostrar el banner de stale si el WebSocket se desconecta (feat-11)', async () => {
-    const { getByText } = render(WatchlistPanel);
+    const { getByText } = render(WatchlistPanel, { onNavigate: vi.fn() });
     const ws = FakeWebSocket.instances[0];
     ws.onopen?.();
     await tick();
@@ -91,7 +91,7 @@ describe('WatchlistPanel', () => {
   });
 
   it('no reconecta tras onDestroy (componente desmontado)', () => {
-    const { unmount } = render(WatchlistPanel);
+    const { unmount } = render(WatchlistPanel, { onNavigate: vi.fn() });
     const ws = FakeWebSocket.instances[0];
     ws.onopen?.();
 
@@ -103,7 +103,7 @@ describe('WatchlistPanel', () => {
   });
 
   it('muestra el badge de EN VIVO tras conectar y el símbolo de la watchlist', async () => {
-    const { getByText } = render(WatchlistPanel);
+    const { getByText } = render(WatchlistPanel, { onNavigate: vi.fn() });
     const ws = FakeWebSocket.instances[0];
     ws.onopen?.();
     await tick();
@@ -112,8 +112,19 @@ describe('WatchlistPanel', () => {
     expect(getByText(DEFAULT_WATCHLIST[0])).toBeInTheDocument();
   });
 
+  it('feat-18: clicar un símbolo de la watchlist navega a ese símbolo', async () => {
+    const onNavigate = vi.fn();
+    const { getByText } = render(WatchlistPanel, { onNavigate });
+    const ws = FakeWebSocket.instances[0];
+    ws.onopen?.();
+    await tick();
+
+    getByText(DEFAULT_WATCHLIST[0]).click();
+    expect(onNavigate).toHaveBeenCalledWith(DEFAULT_WATCHLIST[0]);
+  });
+
   it('actualiza una fila con la cotización recibida por push', async () => {
-    const { getByText } = render(WatchlistPanel);
+    const { getByText } = render(WatchlistPanel, { onNavigate: vi.fn() });
     const ws = FakeWebSocket.instances[0];
     ws.onopen?.();
     ws.onmessage?.({
@@ -136,7 +147,7 @@ describe('WatchlistPanel', () => {
   });
 
   it('muestra ERROR en la fila de un símbolo roto sin romper el resto', async () => {
-    const { getByText } = render(WatchlistPanel);
+    const { getByText } = render(WatchlistPanel, { onNavigate: vi.fn() });
     const ws = FakeWebSocket.instances[0];
     ws.onopen?.();
     ws.onmessage?.({
