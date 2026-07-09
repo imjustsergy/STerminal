@@ -32,6 +32,8 @@ class CommandType(str, Enum):
     PORTFOLIO = "PORTFOLIO"
     PORTFOLIO_ADD = "PORTFOLIO_ADD"
     WATCHLIST = "WATCHLIST"
+    WATCHLIST_ADD = "WATCHLIST_ADD"
+    WATCHLIST_REMOVE = "WATCHLIST_REMOVE"
     MOVERS = "MOVERS"
     HELP = "HELP"
 
@@ -111,6 +113,17 @@ class InvalidPortAddArgsError(CommandParseError):
         )
 
 
+class InvalidWatchArgsError(CommandParseError):
+    """`WATCH ADD`/`WATCH REMOVE` (feat-20) no tienen exactamente
+    `<SÍMBOLO>` como único argumento, o el símbolo no tiene forma válida."""
+
+    def __init__(self, keyword: str, detail: str) -> None:
+        super().__init__(
+            f"{detail} — sintaxis esperada: WATCH {keyword} <SÍMBOLO>, "
+            f"ej. 'WATCH {keyword} MSFT'"
+        )
+
+
 # Funciones que exigen símbolo (`SÍMBOLO FUNCIÓN`).
 _SYMBOL_FUNCTIONS: dict[str, CommandType] = {
     "GP": CommandType.GRAPH_PRICE,
@@ -176,16 +189,34 @@ def _parse_port_add(tokens: list[str], raw: str) -> Command:
     )
 
 
+_WATCH_MUTATION_TYPES: dict[str, CommandType] = {
+    "ADD": CommandType.WATCHLIST_ADD,
+    "REMOVE": CommandType.WATCHLIST_REMOVE,
+}
+
+
+def _parse_watch_mutation(tokens: list[str], raw: str, keyword: str) -> Command:
+    """`WATCH ADD <SÍMBOLO>` / `WATCH REMOVE <SÍMBOLO>` (feat-20) — segunda excepción
+    a la sintaxis general de como mucho 2 tokens, mismo patrón que `PORT ADD`."""
+    if len(tokens) != 3:
+        raise InvalidWatchArgsError(
+            keyword, f"se esperaban 3 tokens, se recibieron {len(tokens)}"
+        )
+    symbol = _validate_symbol(tokens[2])
+    return Command(type=_WATCH_MUTATION_TYPES[keyword], symbol=symbol, raw=raw)
+
+
 def parse_command(raw: str) -> Command:
     """Parsea `raw` (lo que el usuario escribió en la barra de comando) según la
-    sintaxis `[SÍMBOLO] [FUNCIÓN]` o `FUNCIÓN` de `spec.md` sección 4 — con la única
-    excepción de `PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>` (feat-19, 5 tokens).
+    sintaxis `[SÍMBOLO] [FUNCIÓN]` o `FUNCIÓN` de `spec.md` sección 4 — con las
+    excepciones documentadas de `PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>` (feat-19, 5
+    tokens) y `WATCH ADD|REMOVE <SÍMBOLO>` (feat-20, 3 tokens).
 
     No ejecuta el comando ni llama al registry — solo produce la representación
     estructurada. Lanza una subclase de `CommandParseError` ante cualquier entrada
     inválida (cadena vacía, función desconocida, símbolo con formato inválido, función
     que exige símbolo sin él, función que no acepta símbolo y lo recibe, más de dos
-    tokens fuera del caso `PORT ADD`); nunca deja escapar otra excepción.
+    tokens fuera de esas excepciones); nunca deja escapar otra excepción.
     """
     tokens = raw.split()
 
@@ -194,6 +225,9 @@ def parse_command(raw: str) -> Command:
 
     if tokens[0].upper() == "PORT" and len(tokens) >= 2 and tokens[1].upper() == "ADD":
         return _parse_port_add(tokens, raw)
+
+    if tokens[0].upper() == "WATCH" and len(tokens) >= 2 and tokens[1].upper() in _WATCH_MUTATION_TYPES:
+        return _parse_watch_mutation(tokens, raw, tokens[1].upper())
 
     if len(tokens) == 1:
         token = tokens[0].upper()

@@ -14,6 +14,7 @@ from app.commands import (
     EmptyCommandError,
     InvalidPortAddArgsError,
     InvalidSymbolError,
+    InvalidWatchArgsError,
     MissingSymbolError,
     TooManyTokensError,
     UnexpectedSymbolError,
@@ -279,6 +280,64 @@ def test_port_watch_help_movers_still_raises_too_many_tokens() -> None:
     """`PORT ...` cuyo segundo token no es `ADD` sigue el camino genérico normal."""
     with pytest.raises(TooManyTokensError):
         parse_command("PORT WATCH HELP MOVERS")
+
+
+# --- WATCH ADD / WATCH REMOVE (feat-20) — segunda excepción de 3 tokens ------
+
+
+@pytest.mark.parametrize(
+    "raw,expected_type,expected_symbol",
+    [
+        ("WATCH ADD MSFT", CommandType.WATCHLIST_ADD, "MSFT"),
+        ("watch add msft", CommandType.WATCHLIST_ADD, "MSFT"),
+        ("WATCH REMOVE MSFT", CommandType.WATCHLIST_REMOVE, "MSFT"),
+        ("watch remove msft", CommandType.WATCHLIST_REMOVE, "MSFT"),
+        ("WATCH ADD BRK-B", CommandType.WATCHLIST_ADD, "BRK-B"),
+    ],
+)
+def test_watch_mutation_valid_syntax(
+    raw: str, expected_type: CommandType, expected_symbol: str
+) -> None:
+    command = parse_command(raw)
+    assert command.type == expected_type
+    assert command.symbol == expected_symbol
+    assert command.raw == raw
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "WATCH ADD",
+        "WATCH REMOVE",
+        "WATCH ADD MSFT EXTRA",
+        "WATCH REMOVE MSFT EXTRA",
+    ],
+)
+def test_watch_mutation_wrong_token_count_raises(raw: str) -> None:
+    with pytest.raises(InvalidWatchArgsError):
+        parse_command(raw)
+
+
+def test_watch_mutation_invalid_symbol_raises_invalid_symbol_error() -> None:
+    """Mismo criterio que PORT ADD: el símbolo reutiliza InvalidSymbolError, no un
+    error específico de WATCH ADD/REMOVE."""
+    with pytest.raises(InvalidSymbolError):
+        parse_command("WATCH ADD MSFT$")
+
+
+def test_watch_alone_still_works_unaffected_by_mutation_special_case() -> None:
+    """`WATCH` a secas (sin ADD/REMOVE) no debe verse afectado por el caso especial."""
+    command = parse_command("WATCH")
+    assert command.type == CommandType.WATCHLIST
+    assert command.symbol is None
+
+
+def test_watch_unknown_second_token_falls_through_to_generic_path() -> None:
+    """`WATCH FOO` (ni ADD ni REMOVE) no encaja en el caso especial de mutación —
+    sigue el camino genérico de 2 tokens (símbolo `WATCH` + función `FOO`
+    desconocida)."""
+    with pytest.raises(UnknownCommandError):
+        parse_command("WATCH FOO")
 
 
 # --- Todas las filas de spec.md sección 4, de un vistazo --------------------
