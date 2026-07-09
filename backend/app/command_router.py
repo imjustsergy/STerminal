@@ -69,6 +69,7 @@ _COMMAND_DESCRIPTIONS: dict[CommandType, str] = {
     CommandType.FA: "Datos financieros: cap. de mercado, PER, BPA, dividendo, beta, sector (feat-14).",
     CommandType.CORR: "Correlación de rendimientos diarios frente a una cesta de referencia fija (feat-15).",
     CommandType.REPORTS: "Enlaces externos a fuentes de reports: Yahoo Finance, SEC EDGAR, sitio del proyecto (feat-16).",
+    CommandType.MAP: "Mapa de cadena de valor (mindmap): materias primas de entrada y sectores de salida, taxonomía curada (feat-17).",
     CommandType.PORTFOLIO: "Cartera: posiciones agregadas, P&L y asignación.",
     CommandType.WATCHLIST: "Watchlist en vivo (ver WebSocket /stream, feature 7).",
     CommandType.MOVERS: "Mayores subidas/bajadas del día (fuera de alcance del MVP).",
@@ -258,6 +259,30 @@ def _dispatch_report_links(command: Command, registry: Registry) -> dict[str, An
     }
 
 
+def _dispatch_value_chain(command: Command, registry: Registry) -> dict[str, Any]:
+    """feat-17. El nodo central sigue el mismo criterio de "símbolo no encontrado" que
+    SUMMARY/GRAPH_PRICE (precio 0.0 -> 400) — a diferencia de `inputs`/`outputs`, que
+    vacíos son 200 válido (sector sin taxonomía curada, o crypto/fx sin sector GICS).
+    Sobreescribe `center["symbol"]` con `command.symbol`, mismo patrón preventivo que
+    en feat-15/16 tras el bug de identidad de símbolo de feat-14."""
+    assert command.symbol is not None  # garantizado por parse_command para MAP
+    asset_class, _internal_symbol = registry.resolve(command.symbol)
+    value_chain = registry.get_value_chain(command.symbol)
+    if value_chain.center.price == 0.0:
+        raise SymbolNotFoundError(command.symbol)
+    center_payload = dataclasses.asdict(value_chain.center)
+    center_payload["symbol"] = command.symbol
+    return {
+        "type": CommandType.MAP.value,
+        "symbol": command.symbol,
+        "asset_class": asset_class,
+        "sector": value_chain.sector,
+        "center": center_payload,
+        "inputs": [dataclasses.asdict(q) for q in value_chain.inputs],
+        "outputs": [dataclasses.asdict(q) for q in value_chain.outputs],
+    }
+
+
 def _dispatch(
     command: Command,
     registry: Registry,
@@ -280,6 +305,8 @@ def _dispatch(
         return _dispatch_correlations(command, registry)
     if command.type == CommandType.REPORTS:
         return _dispatch_report_links(command, registry)
+    if command.type == CommandType.MAP:
+        return _dispatch_value_chain(command, registry)
     # WATCHLIST / MOVERS: reconocidos por el parser, no ejecutables aquí.
     raise UnsupportedCommandError(
         _UNSUPPORTED_MESSAGES.get(

@@ -20,6 +20,7 @@ from app.models import (
     Quote,
     ReportLink,
     SymbolMatch,
+    ValueChain,
 )
 from app.portfolio import Holding, PortfolioSummary
 
@@ -47,6 +48,8 @@ class FakeRegistry:
         self.correlations_result: list[CorrelationResult] = []
         self.report_links_calls: list[str] = []
         self.report_links_result: list[ReportLink] = []
+        self.value_chain_calls: list[str] = []
+        self.value_chain_result: ValueChain | None = None
 
     def resolve(self, symbol: str, asset_class: str | None = None) -> tuple[str, str]:
         if asset_class is not None:
@@ -137,6 +140,24 @@ class FakeRegistry:
     ) -> list[ReportLink]:
         self.report_links_calls.append(symbol)
         return self.report_links_result
+
+    def get_value_chain(self, symbol: str, asset_class: str | None = None) -> ValueChain:
+        self.value_chain_calls.append(symbol)
+        if self.value_chain_result is not None:
+            return self.value_chain_result
+        return ValueChain(
+            sector=None,
+            center=Quote(
+                symbol=symbol,
+                price=self.quote_price,
+                currency="USD",
+                change=1.0,
+                change_percent=0.8,
+                timestamp="2026-07-07T00:00:00Z",
+            ),
+            inputs=[],
+            outputs=[],
+        )
 
 
 class FakePortfolioEngine:
@@ -305,6 +326,7 @@ def test_help_lists_all_commands(client) -> None:
     assert "<SÍMBOLO> FA" in usages
     assert "<SÍMBOLO> CORR" in usages
     assert "<SÍMBOLO> REPORTS" in usages
+    assert "<SÍMBOLO> MAP" in usages
     for entry in body["commands"]:
         assert entry["description"]
 
@@ -488,6 +510,103 @@ def test_reports_empty_list_is_not_an_error(client) -> None:
     body = response.json()
     assert body["asset_class"] == "fx"
     assert body["links"] == []
+
+
+# --- MAP (feat-17) ------------------------------------------------------------
+
+
+def test_map_mapped_sector_returns_center_inputs_outputs(client) -> None:
+    test_client, registry, _ = client
+    registry.value_chain_result = ValueChain(
+        sector="Technology",
+        center=Quote(
+            symbol="AAPL",
+            price=312.19,
+            currency="USD",
+            change=-0.47,
+            change_percent=-0.15,
+            timestamp="2026-07-07T00:00:00Z",
+        ),
+        inputs=[
+            Quote(symbol="SOXX", price=200.0, currency="USD", change=1.0, change_percent=0.5, timestamp="2026-07-07T00:00:00Z"),
+            Quote(symbol="CPER", price=30.0, currency="USD", change=-0.5, change_percent=-1.5, timestamp="2026-07-07T00:00:00Z"),
+        ],
+        outputs=[
+            Quote(symbol="XLY", price=180.0, currency="USD", change=0.8, change_percent=0.4, timestamp="2026-07-07T00:00:00Z"),
+        ],
+    )
+    response = _post(test_client, "AAPL MAP")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "MAP"
+    assert body["symbol"] == "AAPL"
+    assert body["asset_class"] == "equity"
+    assert body["sector"] == "Technology"
+    assert body["center"]["symbol"] == "AAPL"
+    assert {n["symbol"] for n in body["inputs"]} == {"SOXX", "CPER"}
+    assert {n["symbol"] for n in body["outputs"]} == {"XLY"}
+    assert registry.value_chain_calls == ["AAPL"]
+
+
+def test_map_unmapped_sector_or_crypto_fx_returns_empty_lists_not_an_error(client) -> None:
+    """feat-17: mismo criterio que FA/NEWS/CORR/REPORTS — sector sin mapeo curado, o
+    crypto/fx sin sector GICS, es 200 con inputs/outputs vacíos, no un error."""
+    test_client, registry, _ = client
+    registry.value_chain_result = ValueChain(
+        sector=None,
+        center=Quote(
+            symbol="bitcoin",
+            price=63506.0,
+            currency="USD",
+            change=100.0,
+            change_percent=0.16,
+            timestamp="2026-07-07T00:00:00Z",
+        ),
+        inputs=[],
+        outputs=[],
+    )
+    response = _post(test_client, "BTC MAP")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sector"] is None
+    assert body["inputs"] == []
+    assert body["outputs"] == []
+
+
+def test_map_price_zero_center_treated_as_not_found(client) -> None:
+    """Mismo criterio que SUMMARY/GRAPH_PRICE (feat-11): precio 0.0 en el nodo central
+    es la señal de símbolo inexistente."""
+    test_client, registry, _ = client
+    registry.quote_price = 0.0
+    response = _post(test_client, "BADCMD123 MAP")
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "BADCMD123" in detail["message"]
+
+
+def test_map_translated_symbol_is_reported_as_the_requested_symbol(client) -> None:
+    """Regresión preventiva (mismo patrón que el bug de feat-14 corregido en
+    financials.symbol): center.symbol debe reflejar lo pedido por el cliente, no el
+    símbolo interno traducido del provider."""
+    test_client, registry, _ = client
+    registry.value_chain_result = ValueChain(
+        sector=None,
+        center=Quote(
+            symbol="bitcoin",
+            price=63506.0,
+            currency="USD",
+            change=100.0,
+            change_percent=0.16,
+            timestamp="2026-07-07T00:00:00Z",
+        ),
+        inputs=[],
+        outputs=[],
+    )
+    response = _post(test_client, "BTC MAP")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["symbol"] == "BTC"
+    assert body["center"]["symbol"] == "BTC"
 
 
 # --- Comandos reconocidos pero no soportados por este endpoint -------------
