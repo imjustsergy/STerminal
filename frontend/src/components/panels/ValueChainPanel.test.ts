@@ -22,11 +22,20 @@ function baseResponse(overrides: Partial<ValueChainResponse> = {}): ValueChainRe
       timestamp: '2026-07-07T00:00:00Z',
     },
     inputs: [
-      { symbol: 'SOXX', price: 200.0, currency: 'USD', change: 1.0, change_percent: 0.5, timestamp: '2026-07-07T00:00:00Z' },
-      { symbol: 'CPER', price: 30.0, currency: 'USD', change: -0.5, change_percent: -1.5, timestamp: '2026-07-07T00:00:00Z' },
+      {
+        quote: { symbol: 'SOXX', price: 200.0, currency: 'USD', change: 1.0, change_percent: 0.5, timestamp: '2026-07-07T00:00:00Z' },
+        description: 'ETF de semiconductores — insumo clave de dispositivos electrónicos',
+      },
+      {
+        quote: { symbol: 'CPER', price: 30.0, currency: 'USD', change: -0.5, change_percent: -1.5, timestamp: '2026-07-07T00:00:00Z' },
+        description: 'ETF de cobre — materia prima de componentes y cableado electrónico',
+      },
     ],
     outputs: [
-      { symbol: 'XLY', price: 180.0, currency: 'USD', change: 0.8, change_percent: 0.4, timestamp: '2026-07-07T00:00:00Z' },
+      {
+        quote: { symbol: 'XLY', price: 180.0, currency: 'USD', change: 0.8, change_percent: 0.4, timestamp: '2026-07-07T00:00:00Z' },
+        description: 'ETF de consumo discrecional — venta de electrónica/bienes de consumo',
+      },
     ],
     ...overrides,
   };
@@ -34,7 +43,7 @@ function baseResponse(overrides: Partial<ValueChainResponse> = {}): ValueChainRe
 
 describe('ValueChainPanel', () => {
   it('renderiza el mindmap: nodo central + nodos de entrada/salida como SVG conectado', () => {
-    const { container, getByText } = render(ValueChainPanel, { response: baseResponse() });
+    const { container } = render(ValueChainPanel, { response: baseResponse() });
 
     const svg = container.querySelector('svg.mindmap');
     expect(svg).not.toBeNull();
@@ -47,9 +56,18 @@ describe('ValueChainPanel', () => {
     const edges = container.querySelectorAll('svg line.edge');
     expect(edges.length).toBe(3);
 
-    expect(getByText('SOXX')).toBeInTheDocument();
-    expect(getByText('CPER')).toBeInTheDocument();
-    expect(getByText('XLY')).toBeInTheDocument();
+    // Los símbolos aparecen tanto en el SVG como en la leyenda — se comprueba dentro
+    // del SVG específicamente para no ambigüedad con getByText.
+    const svgSymbols = Array.from(svg!.querySelectorAll('.node-symbol')).map((el) => el.textContent);
+    expect(svgSymbols).toEqual(expect.arrayContaining(['AAPL', 'SOXX', 'CPER', 'XLY']));
+  });
+
+  it('renderiza una leyenda con la descripción de cada nodo (feedback del owner)', () => {
+    const { getByText } = render(ValueChainPanel, { response: baseResponse() });
+
+    expect(getByText(/ETF de semiconductores/)).toBeInTheDocument();
+    expect(getByText(/ETF de cobre/)).toBeInTheDocument();
+    expect(getByText(/ETF de consumo discrecional/)).toBeInTheDocument();
   });
 
   it('muestra el sector en la cabecera cuando está presente', () => {
