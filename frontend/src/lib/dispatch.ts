@@ -11,6 +11,7 @@ export type PanelKind =
   | 'reports'
   | 'value_chain'
   | 'watch'
+  | 'providers'
   | 'unknown';
 
 /**
@@ -41,6 +42,8 @@ export function panelForType(type: string): PanelKind {
     case 'WATCHLIST_ADD':
     case 'WATCHLIST_REMOVE':
       return 'watch';
+    case 'PROVIDERS':
+      return 'providers';
     default:
       return 'unknown';
   }

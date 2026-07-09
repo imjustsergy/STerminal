@@ -12,6 +12,7 @@ dependencies = [
     "uvicorn",
     "yfinance",
     "httpx",
+    "python-dotenv",
 ]
 
 [project.optional-dependencies]

@@ -1,0 +1,134 @@
+{
+  "items": "50",
+  "sentiment_score_definition": "x <= -0.35: Bearish; -0.35 < x <= -0.15: Somewhat-Bearish; -0.15 < x < 0.15: Neutral; 0.15 <= x < 0.35: Somewhat_Bullish; x >= 0.35: Bullish",
+  "relevance_score_definition": "0 < x <= 1, with a higher score indicating higher relevance.",
+  "feed": [
+    {
+      "title": "WuXi AppTec Co., Ltd. Class A Stock 12‑Month Price Target Raised to CNY 150.85, Implies 31% Upside",
+      "url": "https://www.tradingview.com/news/tradingview:6eec4f44c6ced:0-wuxi-apptec-co-ltd-class-a-stock-12-month-price-target-raised-to-cny-150-85-implies-31-upside/",
+      "time_published": "20260709T204026",
+      "authors": [
+        "TradingView"
+      ],
+      "summary": "Analysts have raised the average 12-month price target for WuXi AppTec Co., Ltd. Class A stock to CNY 150.85, up from CNY 150.08. This new target implies a potential upside of approximately 31% from its July 8 closing price. The consensus rating among 26 analysts remains a \"Buy.\"",
+      "banner_image": "https://s3-symbol-logo.tradingview.com/wuxi-apptec.svg",
+      "source": "TradingView",
+      "category_within_source": "General",
+      "source_domain": "TradingView",
+      "topics": [
+        {
+          "topic": "financial_markets",
+          "relevance_score": "0.946574"
+        }
+      ],
+      "overall_sentiment_score": 0.422923,
+      "overall_sentiment_label": "Bullish",
+      "ticker_sentiment": [
+        {
+          "ticker": "FDS",
+          "relevance_score": "0.628115",
+          "ticker_sentiment_score": "0.141426",
+          "ticker_sentiment_label": "Neutral"
+        },
+        {
+          "ticker": "AAPL",
+          "relevance_score": "0.709225",
+          "ticker_sentiment_score": "0.727113",
+          "ticker_sentiment_label": "Bullish"
+        },
+        {
+          "ticker": "MSFT",
+          "relevance_score": "0.642127",
+          "ticker_sentiment_score": "0.322097",
+          "ticker_sentiment_label": "Somewhat-Bullish"
+        },
+        {
+          "ticker": "GOOG",
+          "relevance_score": "0.553201",
+          "ticker_sentiment_score": "0.414356",
+          "ticker_sentiment_label": "Bullish"
+        }
+      ]
+    },
+    {
+      "title": "Trending Industry Today: Corning Leads Gains In Apple Ecosystem Stocks",
+      "url": "https://www.moomoo.com/news/post/72729701/trending-industry-today-corning-leads-gains-in-apple-ecosystem-stocks",
+      "time_published": "20260709T173315",
+      "authors": [],
+      "summary": "Corning (GLW) is leading the gains among Apple ecosystem stocks today, with its shares rising by 2.4% following news of a significant investment from Apple into its manufacturing facilities. This investment is part of Apple's Advanced Manufacturing Fund, designed to support innovation and job creation in the U.S. supply chain. The partnership between Corning and Apple continues to strengthen, focusing on the development of advanced glass technologies used in Apple products.",
+      "banner_image": null,
+      "source": "Moomoo",
+      "category_within_source": "General",
+      "source_domain": "Moomoo",
+      "topics": [
+        {
+          "topic": "manufacturing",
+          "relevance_score": "0.902921"
+        },
+        {
+          "topic": "technology",
+          "relevance_score": "0.838931"
+        },
+        {
+          "topic": "financial_markets",
+          "relevance_score": "0.748761"
+        }
+      ],
+      "overall_sentiment_score": 0.385254,
+      "overall_sentiment_label": "Bullish",
+      "ticker_sentiment": [
+        {
+          "ticker": "GLW",
+          "relevance_score": "1.000000",
+          "ticker_sentiment_score": "0.492963",
+          "ticker_sentiment_label": "Bullish"
+        },
+        {
+          "ticker": "AAPL",
+          "relevance_score": "0.934615",
+          "ticker_sentiment_score": "0.333398",
+          "ticker_sentiment_label": "Somewhat-Bullish"
+        }
+      ]
+    },
+    {
+      "title": "Erste Group Moves Broadcom (AVGO) to Hold",
+      "url": "https://sg.finance.yahoo.com/news/erste-group-moves-broadcom-avgo-164525932.html",
+      "time_published": "20260709T164500",
+      "authors": [
+        "Jeff Lewis"
+      ],
+      "summary": "Erste Group analyst Hans Engel downgraded Broadcom Inc. (NASDAQ:AVGO) to Hold from Buy, citing the company's high valuation already reflecting a positive outlook despite stable gross and operating margins. Broadcom recently expanded its technology collaboration with Apple Inc. through 2031 to develop and supply custom ASIC silicon products. While acknowledging AVGO's potential, the analyst suggests other AI stocks offer greater upside and less downside risk.",
+      "banner_image": null,
+      "source": "Yahoo Finance Singapore",
+      "category_within_source": "General",
+      "source_domain": "Yahoo Finance Singapore",
+      "topics": [
+        {
+          "topic": "financial_markets",
+          "relevance_score": "0.948223"
+        },
+        {
+          "topic": "technology",
+          "relevance_score": "0.826222"
+        }
+      ],
+      "overall_sentiment_score": 0.022827,
+      "overall_sentiment_label": "Neutral",
+      "ticker_sentiment": [
+        {
+          "ticker": "AVGO",
+          "relevance_score": "1.000000",
+          "ticker_sentiment_score": "0.023868",
+          "ticker_sentiment_label": "Neutral"
+        },
+        {
+          "ticker": "AAPL",
+          "relevance_score": "0.748808",
+          "ticker_sentiment_score": "0.015525",
+          "ticker_sentiment_label": "Neutral"
+        }
+      ]
+    }
+  ]
+}

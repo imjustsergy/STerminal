@@ -182,6 +182,23 @@ export interface WatchlistRemoveResponse {
   symbols: string[];
 }
 
+export interface ProviderStatus {
+  name: string;
+  active: boolean;
+}
+
+/** feat-21: respuesta de `PROVIDERS`/`PROVIDERS SET` — mismo tipo para ambos, el
+ * segundo devuelve el estado ya actualizado tras el cambio (mismo espíritu que
+ * WatchlistAddResponse/WatchlistRemoveResponse). */
+export interface ProvidersResponse {
+  type: 'PROVIDERS';
+  providers: {
+    equity: ProviderStatus[];
+    crypto: ProviderStatus[];
+    fx: ProviderStatus[];
+  };
+}
+
 /** Unión discriminada de todo lo que `POST /command` puede devolver con 200. */
 export type CommandResponse =
   | SummaryResponse
@@ -194,7 +211,8 @@ export type CommandResponse =
   | ReportsResponse
   | ValueChainResponse
   | WatchlistAddResponse
-  | WatchlistRemoveResponse;
+  | WatchlistRemoveResponse
+  | ProvidersResponse;
 
 /** Detalle de error tal cual lo construye `command_router.py::_data_error_detail`. */
 export interface CommandErrorDetail {

@@ -9,3 +9,9 @@
 .preview.json
 .preview-logs/
 sterminal.db
+
+# Secretos (feat-21): API keys reales — nunca versionadas. backend/.env.example es
+# la plantilla versionada, sin valores reales.
+.env
+*.env
+!*.env.example

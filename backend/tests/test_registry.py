@@ -24,6 +24,7 @@ from app.registry import (
     HISTORY_INTRADAY_TTL_SECONDS,
     QUOTE_TTL_SECONDS,
     Registry,
+    UnknownProviderError,
     UnknownSymbolError,
 )
 
@@ -621,3 +622,85 @@ def test_registry_without_explicit_cache_still_works() -> None:
     registry = Registry(equity_provider=equity, crypto_provider=crypto, fx_provider=fx)
     quote = registry.get_quote("AAPL")
     assert isinstance(quote, Quote)
+
+
+# --- Proveedores alternativos registrables (feat-21, PROVIDERS / PROVIDERS SET) ---
+
+
+def test_list_providers_default_only_when_none_registered() -> None:
+    registry, *_ = _make_registry()
+    assert registry.list_providers("equity") == [{"name": "default", "active": True}]
+
+
+def test_register_provider_appears_inactive_until_set_active() -> None:
+    registry, *_ = _make_registry()
+    alt = FakeProvider("equity")
+    registry.register_provider("equity", "alphavantage", alt)
+    assert registry.list_providers("equity") == [
+        {"name": "default", "active": True},
+        {"name": "alphavantage", "active": False},
+    ]
+    # Registrar un alternativo no cambia lo que de verdad atiende las peticiones.
+    registry.get_quote("AAPL")
+    assert alt.quote_calls == []
+
+
+def test_set_active_provider_routes_subsequent_calls_to_alternative() -> None:
+    registry, equity, _, _ = _make_registry()
+    alt = FakeProvider("equity")
+    registry.register_provider("equity", "alphavantage", alt)
+    registry.set_active_provider("equity", "alphavantage")
+    assert registry.list_providers("equity") == [
+        {"name": "default", "active": False},
+        {"name": "alphavantage", "active": True},
+    ]
+    registry.get_quote("AAPL")
+    assert alt.quote_calls == ["AAPL"]
+    assert equity.quote_calls == []
+
+
+def test_set_active_provider_back_to_default() -> None:
+    registry, equity, _, _ = _make_registry()
+    alt = FakeProvider("equity")
+    registry.register_provider("equity", "alphavantage", alt)
+    registry.set_active_provider("equity", "alphavantage")
+    registry.set_active_provider("equity", "default")
+    registry.get_quote("AAPL")
+    assert equity.quote_calls == ["AAPL"]
+    assert alt.quote_calls == []
+
+
+def test_set_active_provider_unknown_asset_class_raises() -> None:
+    registry, *_ = _make_registry()
+    try:
+        registry.set_active_provider("bogus", "alphavantage")
+        assert False, "se esperaba UnknownProviderError"
+    except UnknownProviderError:
+        pass
+
+
+def test_set_active_provider_unknown_provider_name_raises() -> None:
+    registry, *_ = _make_registry()
+    try:
+        registry.set_active_provider("equity", "bogus")
+        assert False, "se esperaba UnknownProviderError"
+    except UnknownProviderError:
+        pass
+
+
+def test_register_provider_reserved_name_default_raises() -> None:
+    registry, *_ = _make_registry()
+    try:
+        registry.register_provider("equity", "default", FakeProvider("equity"))
+        assert False, "se esperaba UnknownProviderError"
+    except UnknownProviderError:
+        pass
+
+
+def test_other_asset_classes_unaffected_by_equity_alt_provider() -> None:
+    registry, _, crypto, _ = _make_registry()
+    alt = FakeProvider("equity")
+    registry.register_provider("equity", "alphavantage", alt)
+    registry.set_active_provider("equity", "alphavantage")
+    registry.get_quote("bitcoin", asset_class="crypto")
+    assert crypto.quote_calls == ["bitcoin"]

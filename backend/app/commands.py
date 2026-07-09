@@ -34,6 +34,8 @@ class CommandType(str, Enum):
     WATCHLIST = "WATCHLIST"
     WATCHLIST_ADD = "WATCHLIST_ADD"
     WATCHLIST_REMOVE = "WATCHLIST_REMOVE"
+    PROVIDERS = "PROVIDERS"
+    PROVIDERS_SET = "PROVIDERS_SET"
     MOVERS = "MOVERS"
     HELP = "HELP"
 
@@ -42,8 +44,9 @@ class CommandType(str, Enum):
 class Command:
     """Salida estructurada de `parse_command`. No se ejecuta a sí mismo.
 
-    `quantity`/`cost_price` solo se rellenan para `PORTFOLIO_ADD` (feat-19) — el
-    resto de `CommandType` no los usa.
+    `quantity`/`cost_price` solo se rellenan para `PORTFOLIO_ADD` (feat-19).
+    `target_asset_class`/`target_provider` solo se rellenan para `PROVIDERS_SET`
+    (feat-21). El resto de `CommandType` no los usa.
     """
 
     type: CommandType
@@ -51,6 +54,8 @@ class Command:
     raw: str
     quantity: float | None = None
     cost_price: float | None = None
+    target_asset_class: str | None = None
+    target_provider: str | None = None
 
 
 class CommandParseError(ValueError):
@@ -124,6 +129,20 @@ class InvalidWatchArgsError(CommandParseError):
         )
 
 
+class InvalidProvidersSetArgsError(CommandParseError):
+    """`PROVIDERS SET` (feat-21) no tiene exactamente
+    `<CLASE_DE_ACTIVO> <PROVEEDOR>`. La validez del nombre de clase/proveedor en sí
+    (ej. ¿existe "ALPHAVANTAGE" de verdad?) no se comprueba aquí — eso es
+    responsabilidad de `Registry.set_active_provider` (feat-21), este parser solo
+    valida la forma sintáctica."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            f"{detail} — sintaxis esperada: PROVIDERS SET <CLASE> <PROVEEDOR>, "
+            f"ej. 'PROVIDERS SET EQUITY ALPHAVANTAGE'"
+        )
+
+
 # Funciones que exigen símbolo (`SÍMBOLO FUNCIÓN`).
 _SYMBOL_FUNCTIONS: dict[str, CommandType] = {
     "GP": CommandType.GRAPH_PRICE,
@@ -138,6 +157,7 @@ _SYMBOL_FUNCTIONS: dict[str, CommandType] = {
 _NO_SYMBOL_FUNCTIONS: dict[str, CommandType] = {
     "PORT": CommandType.PORTFOLIO,
     "WATCH": CommandType.WATCHLIST,
+    "PROVIDERS": CommandType.PROVIDERS,
     "MOVERS": CommandType.MOVERS,
     "HELP": CommandType.HELP,
 }
@@ -206,11 +226,31 @@ def _parse_watch_mutation(tokens: list[str], raw: str, keyword: str) -> Command:
     return Command(type=_WATCH_MUTATION_TYPES[keyword], symbol=symbol, raw=raw)
 
 
+def _parse_providers_set(tokens: list[str], raw: str) -> Command:
+    """`PROVIDERS SET <CLASE_DE_ACTIVO> <PROVEEDOR>` (feat-21) — tercera excepción a
+    la sintaxis general de como mucho 2 tokens, mismo patrón que `PORT ADD`/`WATCH
+    ADD`. Sin símbolo — normaliza clase de activo y nombre de proveedor a
+    mayúsculas, la validación semántica (¿existen de verdad?) la hace
+    `Registry.set_active_provider`."""
+    if len(tokens) != 4:
+        raise InvalidProvidersSetArgsError(
+            f"se esperaban 4 tokens, se recibieron {len(tokens)}"
+        )
+    return Command(
+        type=CommandType.PROVIDERS_SET,
+        symbol=None,
+        raw=raw,
+        target_asset_class=tokens[2].lower(),
+        target_provider=tokens[3].lower(),
+    )
+
+
 def parse_command(raw: str) -> Command:
     """Parsea `raw` (lo que el usuario escribió en la barra de comando) según la
     sintaxis `[SÍMBOLO] [FUNCIÓN]` o `FUNCIÓN` de `spec.md` sección 4 — con las
     excepciones documentadas de `PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>` (feat-19, 5
-    tokens) y `WATCH ADD|REMOVE <SÍMBOLO>` (feat-20, 3 tokens).
+    tokens), `WATCH ADD|REMOVE <SÍMBOLO>` (feat-20, 3 tokens) y `PROVIDERS SET
+    <CLASE> <PROVEEDOR>` (feat-21, 4 tokens).
 
     No ejecuta el comando ni llama al registry — solo produce la representación
     estructurada. Lanza una subclase de `CommandParseError` ante cualquier entrada
@@ -228,6 +268,9 @@ def parse_command(raw: str) -> Command:
 
     if tokens[0].upper() == "WATCH" and len(tokens) >= 2 and tokens[1].upper() in _WATCH_MUTATION_TYPES:
         return _parse_watch_mutation(tokens, raw, tokens[1].upper())
+
+    if tokens[0].upper() == "PROVIDERS" and len(tokens) >= 2 and tokens[1].upper() == "SET":
+        return _parse_providers_set(tokens, raw)
 
     if len(tokens) == 1:
         token = tokens[0].upper()
