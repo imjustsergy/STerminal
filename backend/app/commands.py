@@ -30,6 +30,7 @@ class CommandType(str, Enum):
     REPORTS = "REPORTS"
     MAP = "MAP"
     PORTFOLIO = "PORTFOLIO"
+    PORTFOLIO_ADD = "PORTFOLIO_ADD"
     WATCHLIST = "WATCHLIST"
     MOVERS = "MOVERS"
     HELP = "HELP"
@@ -37,11 +38,17 @@ class CommandType(str, Enum):
 
 @dataclass(frozen=True)
 class Command:
-    """Salida estructurada de `parse_command`. No se ejecuta a sí mismo."""
+    """Salida estructurada de `parse_command`. No se ejecuta a sí mismo.
+
+    `quantity`/`cost_price` solo se rellenan para `PORTFOLIO_ADD` (feat-19) — el
+    resto de `CommandType` no los usa.
+    """
 
     type: CommandType
     symbol: str | None
     raw: str
+    quantity: float | None = None
+    cost_price: float | None = None
 
 
 class CommandParseError(ValueError):
@@ -85,10 +92,23 @@ class UnexpectedSymbolError(CommandParseError):
 
 
 class TooManyTokensError(CommandParseError):
-    """La entrada tiene más de dos tokens — ninguna función de spec.md necesita más."""
+    """La entrada tiene más de dos tokens — ninguna función de spec.md necesita más
+    salvo la excepción explícita de `PORT ADD` (feat-19, ver `InvalidPortAddArgsError`)."""
 
     def __init__(self, raw: str) -> None:
         super().__init__(f"demasiados tokens en el comando: {raw!r}")
+
+
+class InvalidPortAddArgsError(CommandParseError):
+    """`PORT ADD` (feat-19) no tiene exactamente `<SÍMBOLO> <CANTIDAD> <PRECIO>`, o
+    alguno de esos tres valores no es válido (símbolo con forma inválida, cantidad o
+    precio no numéricos o no positivos)."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            f"{detail} — sintaxis esperada: PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>, "
+            f"ej. 'PORT ADD AAPL 10 150.50'"
+        )
 
 
 # Funciones que exigen símbolo (`SÍMBOLO FUNCIÓN`).
@@ -124,20 +144,56 @@ def _validate_symbol(token: str) -> str:
     return upper
 
 
+def _parse_port_add(tokens: list[str], raw: str) -> Command:
+    """`PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>` (feat-19) — única excepción a la
+    sintaxis general de como mucho 2 tokens, por eso se resuelve aparte antes del
+    despacho genérico por número de tokens."""
+    if len(tokens) != 5:
+        raise InvalidPortAddArgsError(f"se esperaban 5 tokens, se recibieron {len(tokens)}")
+
+    symbol = _validate_symbol(tokens[2])
+
+    try:
+        quantity = float(tokens[3])
+    except ValueError:
+        raise InvalidPortAddArgsError(f"cantidad no numérica: {tokens[3]!r}") from None
+    if quantity <= 0:
+        raise InvalidPortAddArgsError(f"la cantidad debe ser positiva: {quantity!r}")
+
+    try:
+        cost_price = float(tokens[4])
+    except ValueError:
+        raise InvalidPortAddArgsError(f"precio no numérico: {tokens[4]!r}") from None
+    if cost_price <= 0:
+        raise InvalidPortAddArgsError(f"el precio debe ser positivo: {cost_price!r}")
+
+    return Command(
+        type=CommandType.PORTFOLIO_ADD,
+        symbol=symbol,
+        raw=raw,
+        quantity=quantity,
+        cost_price=cost_price,
+    )
+
+
 def parse_command(raw: str) -> Command:
     """Parsea `raw` (lo que el usuario escribió en la barra de comando) según la
-    sintaxis `[SÍMBOLO] [FUNCIÓN]` o `FUNCIÓN` de `spec.md` sección 4.
+    sintaxis `[SÍMBOLO] [FUNCIÓN]` o `FUNCIÓN` de `spec.md` sección 4 — con la única
+    excepción de `PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>` (feat-19, 5 tokens).
 
     No ejecuta el comando ni llama al registry — solo produce la representación
     estructurada. Lanza una subclase de `CommandParseError` ante cualquier entrada
     inválida (cadena vacía, función desconocida, símbolo con formato inválido, función
     que exige símbolo sin él, función que no acepta símbolo y lo recibe, más de dos
-    tokens); nunca deja escapar otra excepción.
+    tokens fuera del caso `PORT ADD`); nunca deja escapar otra excepción.
     """
     tokens = raw.split()
 
     if not tokens:
         raise EmptyCommandError()
+
+    if tokens[0].upper() == "PORT" and len(tokens) >= 2 and tokens[1].upper() == "ADD":
+        return _parse_port_add(tokens, raw)
 
     if len(tokens) == 1:
         token = tokens[0].upper()

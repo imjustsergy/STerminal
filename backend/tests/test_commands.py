@@ -12,6 +12,7 @@ from app.commands import (
     CommandParseError,
     CommandType,
     EmptyCommandError,
+    InvalidPortAddArgsError,
     InvalidSymbolError,
     MissingSymbolError,
     TooManyTokensError,
@@ -199,6 +200,85 @@ def test_never_raises_uncontrolled_exception(raw: str) -> None:
         parse_command(raw)
     except CommandParseError:
         pass  # esperado para entradas inválidas
+
+
+# --- PORT ADD (feat-19) — única excepción a la sintaxis de 2 tokens ---------
+
+
+@pytest.mark.parametrize(
+    "raw,expected_symbol,expected_quantity,expected_cost_price",
+    [
+        ("PORT ADD AAPL 10 150.50", "AAPL", 10.0, 150.50),
+        ("port add aapl 10 150.50", "AAPL", 10.0, 150.50),
+        ("PORT ADD BTC 0.5 60000", "BTC", 0.5, 60000.0),
+        ("PORT ADD BRK-B 3 400", "BRK-B", 3.0, 400.0),
+    ],
+)
+def test_port_add_valid_syntax(
+    raw: str, expected_symbol: str, expected_quantity: float, expected_cost_price: float
+) -> None:
+    command = parse_command(raw)
+    assert command.type == CommandType.PORTFOLIO_ADD
+    assert command.symbol == expected_symbol
+    assert command.quantity == expected_quantity
+    assert command.cost_price == expected_cost_price
+    assert command.raw == raw
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "PORT ADD",
+        "PORT ADD AAPL",
+        "PORT ADD AAPL 10",
+        "PORT ADD AAPL 10 150.50 EXTRA",
+    ],
+)
+def test_port_add_wrong_token_count_raises(raw: str) -> None:
+    with pytest.raises(InvalidPortAddArgsError):
+        parse_command(raw)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "PORT ADD AAPL diez 150.50",  # cantidad no numérica
+        "PORT ADD AAPL 10 gratis",  # precio no numérico
+        "PORT ADD AAPL 0 150.50",  # cantidad no positiva
+        "PORT ADD AAPL -5 150.50",  # cantidad negativa
+        "PORT ADD AAPL 10 0",  # precio no positivo
+        "PORT ADD AAPL 10 -150.50",  # precio negativo
+    ],
+)
+def test_port_add_invalid_args_raise(raw: str) -> None:
+    with pytest.raises(InvalidPortAddArgsError):
+        parse_command(raw)
+
+
+def test_port_add_invalid_symbol_raises_invalid_symbol_error() -> None:
+    """El símbolo reutiliza el mismo error que cualquier otro comando (`InvalidSymbolError`),
+    no un error específico de PORT ADD — consistencia con el resto del parser."""
+    with pytest.raises(InvalidSymbolError):
+        parse_command("PORT ADD AAPL$ 10 150.50")
+
+
+def test_port_add_error_message_shows_expected_syntax() -> None:
+    with pytest.raises(InvalidPortAddArgsError) as exc_info:
+        parse_command("PORT ADD AAPL")
+    assert "PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>" in str(exc_info.value)
+
+
+def test_port_alone_still_works_unaffected_by_port_add_special_case() -> None:
+    """`PORT` a secas (sin `ADD`) no debe verse afectado por el caso especial."""
+    command = parse_command("PORT")
+    assert command.type == CommandType.PORTFOLIO
+    assert command.symbol is None
+
+
+def test_port_watch_help_movers_still_raises_too_many_tokens() -> None:
+    """`PORT ...` cuyo segundo token no es `ADD` sigue el camino genérico normal."""
+    with pytest.raises(TooManyTokensError):
+        parse_command("PORT WATCH HELP MOVERS")
 
 
 # --- Todas las filas de spec.md sección 4, de un vistazo --------------------

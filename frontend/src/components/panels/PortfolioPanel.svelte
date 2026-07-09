@@ -73,8 +73,8 @@
     </tbody>
   </table>
   <div class="footer dimmer">
-    Edición de posiciones desde la barra de comando: todavía no disponible (pendiente
-    de una futura iteración).
+    Escribe <span class="acc">PORT ADD &lt;SÍMBOLO&gt; &lt;CANTIDAD&gt; &lt;PRECIO&gt;</span>
+    para añadir un lote de compra, ej. <span class="acc">PORT ADD AAPL 10 150.50</span>.
   </div>
 </div>
 
@@ -161,5 +161,8 @@
   .symbol-link:hover {
     color: var(--acc);
     text-decoration: underline;
+  }
+  .acc {
+    color: var(--acc);
   }
 </style>

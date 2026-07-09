@@ -53,6 +53,7 @@
       <div><span class="acc">AAPL REPORTS</span> <span class="dim">enlaces a reports</span></div>
       <div><span class="acc">AAPL MAP</span> <span class="dim">mapa de cadena de valor</span></div>
       <div><span class="acc">PORT</span> <span class="dim">cartera</span></div>
+      <div><span class="acc">PORT ADD AAPL 10 150.50</span> <span class="dim">añadir un lote de compra</span></div>
       <div><span class="acc">WATCH</span> <span class="dim">watchlist en vivo</span></div>
       <div><span class="acc">HELP</span> <span class="dim">lista de comandos</span></div>
     </div>

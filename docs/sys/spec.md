@@ -769,6 +769,42 @@ Solución:
   documentados en `scoring.md`, fuera de esta iteración concreta).
 - **Dependencias:** ninguna nueva.
 
+### feat-19 — Añadir posiciones a la cartera (comando `PORT ADD`)
+
+Novena iteración del bucle post-MVP, continúa la fase de auditoría/completar-lo-a-medias.
+`PortfolioEngine.add_position` ya existía desde feat-6, completo y probado — nunca se
+expuso vía el lenguaje de comandos. Definición exacta de "funcionalidad a medias": el
+motor existía, faltaba la última capa (parser + router).
+
+- **Sintaxis nueva de 5 tokens** — primera y única excepción documentada al principio
+  de "máximo 2 tokens" de `commands.py`: `PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>`, ej.
+  `PORT ADD AAPL 10 150.50`. Reconocida como caso especial antes del despacho
+  genérico por número de tokens (`tokens[0] == "PORT" and tokens[1] == "ADD"`).
+- `CommandType.PORTFOLIO_ADD` + `Command` extendido con `quantity`/`cost_price`
+  opcionales (además de `symbol`, reutilizado). Validación en el parser: símbolo con
+  la misma forma de siempre (`InvalidSymbolError`, no un error específico —
+  consistencia con el resto del lenguaje), cantidad/precio deben ser números
+  positivos parseables (`InvalidPortAddArgsError` si no, con la sintaxis exacta en
+  el mensaje).
+- `command_router.py::_dispatch_portfolio_add`: resuelve la clase de activo vía
+  `Registry.resolve` (misma heurística automática que cualquier otro comando, sin
+  exigir especificarla a mano), llama a `PortfolioEngine.add_position` con
+  `opened_at` = fecha de hoy (UTC), y devuelve **la misma respuesta que `PORT`** — el
+  owner ve la cartera actualizada de inmediato, sin panel nuevo ni cambio de
+  frontend más allá del texto del footer.
+- `PortfolioPanel.svelte`: el footer vuelve a invitar a usar `PORT ADD`, esta vez de
+  verdad (en feat-18 se había ocultado precisamente porque no funcionaba).
+- Verificado en vivo contra SQLite real (no mockeado): `PORT ADD AAPL 10 150.50`
+  persiste el lote y aparece en `PORT` en una petición separada posterior; `PORT ADD
+  BTC 0.5 60000` resuelve `asset_class: "crypto"` automáticamente; cantidad negativa
+  y token count incorrecto devuelven `400` con la sintaxis exacta, sin tocar
+  `PortfolioEngine`. Los 5 criterios de aceptación de `feat-19-port-add.md`
+  verificados sin reservas — a diferencia de feat-17/feat-18, esta vez la
+  verificación fue más allá de lo pedido (persistencia real en SQLite, no solo
+  fakes). Único hueco: el click-through visual en navegador real sigue sin
+  confirmarse (extensión Claude-in-Chrome desconectada, mismo problema que feat-18).
+- **Dependencias:** ninguna nueva.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
@@ -787,6 +823,7 @@ cripto vs. acción). Historial con ↑/↓ y autocompletado.
 | `AAPL REPORTS` | Enlaces externos a fuentes de reports (Yahoo Finance, SEC EDGAR...). |
 | `AAPL MAP` | Mapa de cadena de valor (mindmap): materias primas de entrada / salidas. |
 | `PORT` | Cartera: posiciones, P&L, asignación. |
+| `PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>` | Añade un lote de compra a la cartera. |
 | `WATCH` | Watchlist en vivo. |
 | `EURUSD` | Cotización forex. |
 | `MOVERS` | Mayores subidas/bajadas del día. |

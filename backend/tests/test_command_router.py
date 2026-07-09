@@ -175,6 +175,8 @@ class FakePortfolioEngine:
             holdings_count=0,
         )
         self.holdings_error: Exception | None = None
+        self.add_position_calls: list[dict[str, object]] = []
+        self.add_position_error: Exception | None = None
 
     def holdings(self) -> list[Holding]:
         if self.holdings_error is not None:
@@ -183,6 +185,28 @@ class FakePortfolioEngine:
 
     def portfolio_summary(self) -> PortfolioSummary:
         return self.summary_result
+
+    def add_position(
+        self,
+        symbol: str,
+        asset_class: str,
+        quantity: float,
+        cost_price: float,
+        opened_at: str,
+        account: str | None = None,
+    ) -> None:
+        if self.add_position_error is not None:
+            raise self.add_position_error
+        self.add_position_calls.append(
+            {
+                "symbol": symbol,
+                "asset_class": asset_class,
+                "quantity": quantity,
+                "cost_price": cost_price,
+                "opened_at": opened_at,
+                "account": account,
+            }
+        )
 
 
 @pytest.fixture
@@ -307,6 +331,74 @@ def test_portfolio(client) -> None:
     assert body["summary"]["holdings_count"] == 1
 
 
+# --- PORT ADD (feat-19) -------------------------------------------------------
+
+
+def test_port_add_equity_calls_add_position_and_returns_updated_portfolio(client) -> None:
+    test_client, _, portfolio_engine = client
+    portfolio_engine.holdings_result = [
+        Holding(
+            symbol="AAPL",
+            asset_class="equity",
+            quantity=10.0,
+            avg_cost_price=150.50,
+            current_price=150.50,
+            market_value=1505.0,
+            cost_basis=1505.0,
+            pnl=0.0,
+            pnl_percent=0.0,
+            allocation_percent=100.0,
+            previous_close=None,
+            daily_pnl=None,
+            daily_pnl_percent=None,
+        )
+    ]
+    response = _post(test_client, "PORT ADD AAPL 10 150.50")
+    assert response.status_code == 200
+    body = response.json()
+    # Misma respuesta que PORT: la cartera actualizada, no un panel nuevo.
+    assert body["type"] == "PORTFOLIO"
+    assert body["holdings"][0]["symbol"] == "AAPL"
+
+    assert len(portfolio_engine.add_position_calls) == 1
+    call = portfolio_engine.add_position_calls[0]
+    assert call["symbol"] == "AAPL"
+    assert call["asset_class"] == "equity"
+    assert call["quantity"] == 10.0
+    assert call["cost_price"] == 150.50
+    assert call["opened_at"]  # fecha de hoy, no vacía
+
+
+def test_port_add_crypto_resolves_asset_class_automatically(client) -> None:
+    test_client, _, portfolio_engine = client
+    response = _post(test_client, "PORT ADD BTC 0.5 60000")
+    assert response.status_code == 200
+    assert portfolio_engine.add_position_calls[0]["asset_class"] == "crypto"
+
+
+def test_port_add_missing_args_returns_400_with_expected_syntax(client) -> None:
+    test_client, _, portfolio_engine = client
+    response = _post(test_client, "PORT ADD AAPL")
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>" in detail
+    assert portfolio_engine.add_position_calls == []
+
+
+def test_port_add_negative_quantity_returns_400_without_touching_engine(client) -> None:
+    test_client, _, portfolio_engine = client
+    response = _post(test_client, "PORT ADD AAPL -5 150.50")
+    assert response.status_code == 400
+    assert portfolio_engine.add_position_calls == []
+
+
+def test_port_add_propagates_engine_error_as_400(client) -> None:
+    test_client, _, portfolio_engine = client
+    portfolio_engine.add_position_error = RuntimeError("db caída")
+    response = _post(test_client, "PORT ADD AAPL 10 150.50")
+    assert response.status_code == 400
+
+
 # --- HELP --------------------------------------------------------------
 
 
@@ -328,6 +420,7 @@ def test_help_lists_all_commands(client) -> None:
     assert "<SÍMBOLO> CORR" in usages
     assert "<SÍMBOLO> REPORTS" in usages
     assert "<SÍMBOLO> MAP" in usages
+    assert "PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>" in usages
     for entry in body["commands"]:
         assert entry["description"]
 
