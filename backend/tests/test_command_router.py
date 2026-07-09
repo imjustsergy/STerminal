@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from app.deps import get_portfolio_engine, get_registry
+from app.deps import get_portfolio_engine, get_registry, get_watchlist_store
 from app.main import app
 from app.models import (
     Candle,
@@ -209,6 +209,29 @@ class FakePortfolioEngine:
         )
 
 
+class FakeWatchlistStore:
+    """Doble mínimo de `WatchlistStore`: la capa SQLite real ya está cubierta con
+    SQLite real en `test_watchlist_store.py` — aquí solo importa qué llama el router."""
+
+    def __init__(self) -> None:
+        self.symbols_result: list[str] = []
+        self.add_symbol_calls: list[str] = []
+        self.add_symbol_result = True
+        self.remove_symbol_calls: list[str] = []
+        self.remove_symbol_result = True
+
+    def list_symbols(self) -> list[str]:
+        return self.symbols_result
+
+    def add_symbol(self, symbol: str) -> bool:
+        self.add_symbol_calls.append(symbol)
+        return self.add_symbol_result
+
+    def remove_symbol(self, symbol: str) -> bool:
+        self.remove_symbol_calls.append(symbol)
+        return self.remove_symbol_result
+
+
 @pytest.fixture
 def client():
     registry = FakeRegistry()
@@ -217,6 +240,21 @@ def client():
     app.dependency_overrides[get_portfolio_engine] = lambda: portfolio_engine
     with TestClient(app) as test_client:
         yield test_client, registry, portfolio_engine
+
+
+@pytest.fixture
+def watchlist_client():
+    """Fixture aparte de `client` (feat-20): añadir un cuarto elemento al tuple de
+    `client` habría exigido tocar las ~40 llamadas ya existentes que lo desestructuran.
+    Se usa solo en los tests de WATCH ADD/REMOVE."""
+    registry = FakeRegistry()
+    portfolio_engine = FakePortfolioEngine()
+    watchlist_store = FakeWatchlistStore()
+    app.dependency_overrides[get_registry] = lambda: registry
+    app.dependency_overrides[get_portfolio_engine] = lambda: portfolio_engine
+    app.dependency_overrides[get_watchlist_store] = lambda: watchlist_store
+    with TestClient(app) as test_client:
+        yield test_client, watchlist_store
     app.dependency_overrides.clear()
 
 
@@ -399,6 +437,60 @@ def test_port_add_propagates_engine_error_as_400(client) -> None:
     assert response.status_code == 400
 
 
+# --- WATCH ADD / WATCH REMOVE (feat-20) ---------------------------------------
+
+
+def test_watch_add_calls_store_and_returns_updated_symbols(watchlist_client) -> None:
+    test_client, watchlist_store = watchlist_client
+    watchlist_store.symbols_result = ["AAPL", "BTC", "MSFT"]
+    response = _post(test_client, "WATCH ADD MSFT")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "WATCHLIST_ADD"
+    assert body["symbol"] == "MSFT"
+    assert body["added"] is True
+    assert body["symbols"] == ["AAPL", "BTC", "MSFT"]
+    assert watchlist_store.add_symbol_calls == ["MSFT"]
+
+
+def test_watch_add_duplicate_is_not_an_error(watchlist_client) -> None:
+    test_client, watchlist_store = watchlist_client
+    watchlist_store.add_symbol_result = False  # ya estaba
+    response = _post(test_client, "WATCH ADD AAPL")
+    assert response.status_code == 200
+    assert response.json()["added"] is False
+
+
+def test_watch_remove_calls_store_and_returns_updated_symbols(watchlist_client) -> None:
+    test_client, watchlist_store = watchlist_client
+    watchlist_store.symbols_result = ["AAPL"]
+    response = _post(test_client, "WATCH REMOVE BTC")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "WATCHLIST_REMOVE"
+    assert body["symbol"] == "BTC"
+    assert body["removed"] is True
+    assert body["symbols"] == ["AAPL"]
+    assert watchlist_store.remove_symbol_calls == ["BTC"]
+
+
+def test_watch_remove_not_present_is_not_an_error(watchlist_client) -> None:
+    test_client, watchlist_store = watchlist_client
+    watchlist_store.remove_symbol_result = False  # no estaba
+    response = _post(test_client, "WATCH REMOVE ZZZZ")
+    assert response.status_code == 200
+    assert response.json()["removed"] is False
+
+
+def test_watch_add_missing_symbol_returns_400_with_expected_syntax(watchlist_client) -> None:
+    test_client, watchlist_store = watchlist_client
+    response = _post(test_client, "WATCH ADD")
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "WATCH ADD <SÍMBOLO>" in detail
+    assert watchlist_store.add_symbol_calls == []
+
+
 # --- HELP --------------------------------------------------------------
 
 
@@ -421,6 +513,8 @@ def test_help_lists_all_commands(client) -> None:
     assert "<SÍMBOLO> REPORTS" in usages
     assert "<SÍMBOLO> MAP" in usages
     assert "PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>" in usages
+    assert "WATCH ADD <SÍMBOLO>" in usages
+    assert "WATCH REMOVE <SÍMBOLO>" in usages
     for entry in body["commands"]:
         assert entry["description"]
 
