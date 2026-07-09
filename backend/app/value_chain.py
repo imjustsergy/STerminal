@@ -11,11 +11,14 @@ real y en vivo (vía `Registry.get_quote`); solo la relación input/output en s�
 elección editorial, no algo sacado de una API.
 
 Solo se mapean los sectores donde la relación materia-prima-de-entrada /
-sector-de-salida es económicamente clara y ampliamente aceptada. El resto de sectores
-GICS que expone yfinance (`Financial Services`, `Healthcare`, `Real Estate`,
-`Consumer Cyclical`, `Communication Services`) se deja sin mapear a propósito, en vez
-de forzar una relación débil o discutible — devuelven listas vacías, documentado, no
-un error (ver `docs/sys/features/feat-17-value-chain-map.md`).
+sector-de-salida es económicamente clara y ampliamente aceptada — incluye sectores con
+solo `inputs` o solo `outputs` cuando el otro lado sería forzado (ej. `Real Estate`
+construye con materiales reales, pero "a quién vende su producción" no tiene un proxy
+defendible, así que solo aparece en `SECTOR_INPUTS`). El resto de sectores GICS que
+expone yfinance (`Financial Services`, `Healthcare`, `Consumer Cyclical` — servicios o
+demasiado heterogéneos para una relación única y honesta) se deja sin mapear a
+propósito, en vez de forzar una relación débil o discutible — devuelven listas vacías,
+documentado, no un error (ver `docs/sys/features/feat-17-value-chain-map.md`).
 """
 
 from __future__ import annotations
@@ -29,6 +32,8 @@ SECTOR_INPUTS: dict[str, list[str]] = {
     "Consumer Defensive": ["DBA"],  # materias primas agrícolas
     "Industrials": ["XLB"],  # metales/materiales
     "Utilities": ["USO", "UNG"],  # combustibles fósiles
+    "Real Estate": ["XLB"],  # materiales de construcción (acero, madera, cemento)
+    "Communication Services": ["XLK"],  # equipos/infraestructura de red y telecom
 }
 
 # sector -> tickers de ETF que representan a quién compra típicamente su producción.
@@ -55,6 +60,7 @@ PROXY_DESCRIPTIONS: dict[str, str] = {
     "XLI": "ETF del sector industrial — consume metales, materiales y energía",
     "XLY": "ETF de consumo discrecional — venta de electrónica/bienes de consumo",
     "XRT": "ETF de venta minorista — distribución de productos de consumo",
+    "XLK": "ETF del sector tecnológico — equipos e infraestructura de red y telecom",
 }
 
 

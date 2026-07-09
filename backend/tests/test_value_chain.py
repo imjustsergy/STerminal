@@ -18,11 +18,25 @@ def test_none_sector_returns_empty_lists() -> None:
 
 
 def test_unmapped_sector_returns_empty_lists() -> None:
-    """Un sector real de yfinance sin mapeo curado (ej. Financial Services) devuelve
-    listas vacías, no revienta ni inventa una relación."""
+    """Un sector real de yfinance sin mapeo curado (demasiado heterogéneo o de
+    servicios, sin insumo/salida material defendible) devuelve listas vacías, no
+    revienta ni inventa una relación."""
     assert value_chain_symbols("Financial Services") == ([], [])
     assert value_chain_symbols("Healthcare") == ([], [])
-    assert value_chain_symbols("Real Estate") == ([], [])
+    assert value_chain_symbols("Consumer Cyclical") == ([], [])
+
+
+def test_real_estate_and_communication_services_have_input_only_no_forced_output() -> None:
+    """Ambos tienen un insumo defendible (materiales de construcción / infraestructura
+    de red) pero ninguna salida-a-empresas honesta — se mapea solo el lado que tiene
+    sentido en vez de forzar el otro."""
+    inputs, outputs = value_chain_symbols("Real Estate")
+    assert inputs == ["XLB"]
+    assert outputs == []
+
+    inputs, outputs = value_chain_symbols("Communication Services")
+    assert inputs == ["XLK"]
+    assert outputs == []
 
 
 def test_technology_sector_maps_to_semiconductors_and_copper_input() -> None:
