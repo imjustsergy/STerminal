@@ -52,9 +52,8 @@ describe('PortfolioPanel', () => {
     expect(onNavigate).toHaveBeenCalledWith('AAPL');
   });
 
-  it('feat-18: el footer ya no invita a escribir PORT ADD como si fuera un comando real', () => {
-    const { queryByText, getByText } = render(PortfolioPanel, { response: baseResponse(), onNavigate: vi.fn() });
-    expect(queryByText('PORT ADD')).not.toBeInTheDocument();
-    expect(getByText(/todavía no disponible/)).toBeInTheDocument();
+  it('feat-19: el footer invita a usar PORT ADD, ahora que sí funciona de verdad', () => {
+    const { getByText } = render(PortfolioPanel, { response: baseResponse(), onNavigate: vi.fn() });
+    expect(getByText(/PORT ADD AAPL 10 150.50/)).toBeInTheDocument();
   });
 });
