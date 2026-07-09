@@ -11,6 +11,7 @@
   import PortfolioPanel from './panels/PortfolioPanel.svelte';
   import ReportsPanel from './panels/ReportsPanel.svelte';
   import SummaryPanel from './panels/SummaryPanel.svelte';
+  import ValueChainPanel from './panels/ValueChainPanel.svelte';
   import WatchlistPanel from './panels/WatchlistPanel.svelte';
 
   interface Props {
@@ -47,6 +48,7 @@
       <div><span class="acc">AAPL FA</span> <span class="dim">datos financieros</span></div>
       <div><span class="acc">AAPL CORR</span> <span class="dim">correlaciones de precio</span></div>
       <div><span class="acc">AAPL REPORTS</span> <span class="dim">enlaces a reports</span></div>
+      <div><span class="acc">AAPL MAP</span> <span class="dim">mapa de cadena de valor</span></div>
       <div><span class="acc">PORT</span> <span class="dim">cartera</span></div>
       <div><span class="acc">WATCH</span> <span class="dim">watchlist en vivo</span></div>
       <div><span class="acc">HELP</span> <span class="dim">lista de comandos</span></div>
@@ -70,6 +72,8 @@
   <CorrelationsPanel {response} />
 {:else if kind === 'reports' && response?.type === 'REPORTS'}
   <ReportsPanel {response} />
+{:else if kind === 'value_chain' && response?.type === 'MAP'}
+  <ValueChainPanel {response} />
 {:else if kind === 'watch'}
   <WatchlistPanel />
 {:else}

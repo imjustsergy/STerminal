@@ -97,3 +97,31 @@ class ReportLink:
 
     label: str
     url: str
+
+
+@dataclass
+class ValueChainNode:
+    """Un nodo de entrada/salida del mapa de cadena de valor (feat-17): la cotización
+    real del proxy ETF + una descripción en prosa de qué representa y por qué está ahí
+    (feedback en vivo del owner: el ticker solo no dice nada sin contexto)."""
+
+    quote: Quote
+    description: str
+
+
+@dataclass
+class ValueChain:
+    """Mapa de cadena de valor de un símbolo (feat-17, comando `MAP`): materias primas
+    de entrada y sectores de salida, representados por ETFs proxy reales con
+    cotización en vivo (`Registry.get_quote`), según la taxonomía curada de
+    `app.value_chain`.
+
+    `sector` es `None` para crypto/fx (sin taxonomía GICS); `inputs`/`outputs` son
+    `[]` cuando el sector no tiene mapeo curado definido, o cuando todos sus proxies
+    fallaron al cotizar — en ambos casos es una respuesta documentada, no un error.
+    """
+
+    sector: str | None
+    center: Quote
+    inputs: list[ValueChainNode]
+    outputs: list[ValueChainNode]

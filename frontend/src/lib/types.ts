@@ -148,6 +148,24 @@ export interface ReportsResponse {
   links: ReportLink[];
 }
 
+export interface ValueChainNode {
+  quote: Quote;
+  description: string;
+}
+
+/** feat-17: `sector` es `null` para crypto/fx (sin taxonomía GICS); `inputs`/
+ * `outputs` son `[]` cuando el sector no tiene mapeo curado definido — ambos casos
+ * son respuesta 200 documentada, no un error. */
+export interface ValueChainResponse {
+  type: 'MAP';
+  symbol: string;
+  asset_class: string;
+  sector: string | null;
+  center: Quote;
+  inputs: ValueChainNode[];
+  outputs: ValueChainNode[];
+}
+
 /** Unión discriminada de todo lo que `POST /command` puede devolver con 200. */
 export type CommandResponse =
   | SummaryResponse
@@ -157,7 +175,8 @@ export type CommandResponse =
   | NewsResponse
   | FinancialsResponse
   | CorrelationsResponse
-  | ReportsResponse;
+  | ReportsResponse
+  | ValueChainResponse;
 
 /** Detalle de error tal cual lo construye `command_router.py::_data_error_detail`. */
 export interface CommandErrorDetail {

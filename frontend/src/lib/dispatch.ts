@@ -9,6 +9,7 @@ export type PanelKind =
   | 'financials'
   | 'correlations'
   | 'reports'
+  | 'value_chain'
   | 'unknown';
 
 /**
@@ -34,6 +35,8 @@ export function panelForType(type: string): PanelKind {
       return 'correlations';
     case 'REPORTS':
       return 'reports';
+    case 'MAP':
+      return 'value_chain';
     default:
       return 'unknown';
   }

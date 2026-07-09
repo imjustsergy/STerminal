@@ -656,6 +656,67 @@ donde consultarlos.
 - **Dependencias:** ninguna nueva — misma librería `httpx` ya usada por
   `CryptoProvider`.
 
+### feat-17 — Mapa de cadena de valor (comando `MAP`, estilo mindmap)
+
+Sexta iteración del bucle post-MVP, primer bucle con objetivo de una sola feature
+iterada hasta 9/10 en vez de una feature nueva por iteración (score de partida: 9/10
+tras feat-16, pero para un objetivo distinto — ver `docs/sys/scoring.md`). El owner
+pide ver, para un símbolo, sus materias primas de entrada y sus salidas a otras
+empresas, en formato mindmap.
+
+Ninguna API gratuita ya integrada expone relaciones reales de proveedores/clientes por
+empresa (mismo problema de fondo que motivó feat-15 con las correlaciones). Solución
+honesta: taxonomía curada sector → materia prima de entrada / sector de salida, usando
+ETFs reales y líquidos como proxy de cada nodo — la relación en sí es editorial
+(documentada como tal), la cotización de cada nodo es un dato de mercado real y en
+vivo.
+
+- **`app/value_chain.py`** (nuevo, puro): `SECTOR_INPUTS`/`SECTOR_OUTPUTS` — 8 de los
+  11 sectores GICS de yfinance con relación económica clara (`Energy`, `Basic
+  Materials`, `Technology`, `Consumer Defensive`, `Industrials`, `Utilities`, y —
+  ampliado en la tercera iteración de esta feature — `Real Estate` y `Communication
+  Services`, ambos solo con `inputs` porque ninguno tiene una salida-a-empresas
+  defendible sin forzarla). `Financial Services`/`Healthcare`/`Consumer Cyclical` se
+  dejan sin mapear a propósito — demasiado heterogéneos o de servicios puros para una
+  relación honesta de una sola línea, devuelven listas vacías documentadas en vez de
+  forzarla. Cada proxy tiene además una descripción en prosa
+  (`PROXY_DESCRIPTIONS`/`describe_proxy`) mostrada en la leyenda del panel — añadido
+  tras feedback en vivo del owner (los tickers solos no dicen nada sin contexto).
+- **`ValueChain`** (`backend/app/models.py`): `sector`, `center: Quote`, `inputs:
+  list[Quote]`, `outputs: list[Quote]` — cada nodo es una `Quote` real.
+- **`Registry.get_value_chain(symbol, asset_class=None)`**: cotización real del centro
+  + `sector` vía `get_financials` (ya cacheado) + cotización real de cada proxy de la
+  taxonomía. Un proxy que falla al cotizar (o devuelve precio `0.0`) se omite sin
+  romper el mapa completo — mismo criterio que `get_correlations` (feat-15).
+- **`CommandType.MAP`** en el parser. `command_router.py` despacha a
+  `_dispatch_value_chain`: el nodo central sigue el criterio de "símbolo no
+  encontrado" de `SUMMARY`/`GRAPH_PRICE` (precio `0.0` → `400`); `inputs`/`outputs`
+  vacíos es `200` válido. Aplica de entrada el fix de identidad de símbolo
+  (`center["symbol"]` sobreescrito con `command.symbol`) en vez de esperar a
+  encontrarlo en producción, como sí pasó en feat-14.
+- **`ValueChainPanel.svelte`**: mindmap real en SVG a mano (sin nueva dependencia) —
+  nodo central + entradas en columna a la izquierda + salidas a la derecha, cada una
+  conectada al centro con una línea, coloreada por signo. Estado vacío explícito
+  distinto para "crypto/fx sin sector GICS" vs. "sector equity sin mapeo curado".
+- Verificado en vivo contra yfinance/CoinGecko/frankfurter reales: `AAPL MAP`
+  (Technology, con `SOXX`/`CPER`/`XLY` reales), `XOM MAP` (Energy, con `OIH` y
+  `JETS`+`XLI`), `JPM MAP` (Financial Services, sin mapeo → vacío), `BTC MAP`/`EURUSD
+  MAP` (sector `null` → vacío), y un símbolo inexistente (`400`) — los 6 escenarios de
+  los criterios de aceptación de `feat-17-value-chain-map.md` correctos.
+- **Verificación visual completada en segunda iteración:** el primer intento de
+  captura de navegador falló por resolución de red (Claude-in-Chrome no llegaba a
+  `127.0.0.1`/`192.168.x.x` desde este entorno); el owner dio la IP de Tailscale de la
+  máquina y la verificación visual se completó sobre `AAPL MAP`, `JPM MAP` (sector sin
+  mapeo) y `BTC MAP` (sector `null`) — mindmap limpio, sin solapamientos, escalado
+  correcto en los tres casos.
+- **`ValueChainNode(quote, description)` + leyenda** (añadido tras el feedback en vivo
+  del owner al ver el mindmap): los tickers de los nodos no significaban nada sin
+  contexto — `value_chain.py::PROXY_DESCRIPTIONS` da una descripción en prosa de cada
+  proxy, mostrada en una leyenda a la derecha del mindmap (símbolo + precio +
+  descripción, agrupada en entradas/salidas). Exactamente el tipo de gap que la
+  inspección visual detecta y los tests estructurales no.
+- **Dependencias:** ninguna nueva — SVG a mano, sin librería de gráficos.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
@@ -672,6 +733,7 @@ cripto vs. acción). Historial con ↑/↓ y autocompletado.
 | `AAPL FA` | Datos financieros: cap. de mercado, PER, BPA, dividendo, beta, sector. |
 | `AAPL CORR` | Correlación de rendimientos frente a una cesta de referencia fija. |
 | `AAPL REPORTS` | Enlaces externos a fuentes de reports (Yahoo Finance, SEC EDGAR...). |
+| `AAPL MAP` | Mapa de cadena de valor (mindmap): materias primas de entrada / salidas. |
 | `PORT` | Cartera: posiciones, P&L, asignación. |
 | `WATCH` | Watchlist en vivo. |
 | `EURUSD` | Cotización forex. |
