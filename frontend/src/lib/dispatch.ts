@@ -10,6 +10,7 @@ export type PanelKind =
   | 'correlations'
   | 'reports'
   | 'value_chain'
+  | 'watch'
   | 'unknown';
 
 /**
@@ -37,6 +38,9 @@ export function panelForType(type: string): PanelKind {
       return 'reports';
     case 'MAP':
       return 'value_chain';
+    case 'WATCHLIST_ADD':
+    case 'WATCHLIST_REMOVE':
+      return 'watch';
     default:
       return 'unknown';
   }

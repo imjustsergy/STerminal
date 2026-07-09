@@ -166,6 +166,22 @@ export interface ValueChainResponse {
   outputs: ValueChainNode[];
 }
 
+/** feat-20: respuesta de `WATCH ADD`/`WATCH REMOVE` — `symbols` es la watchlist
+ * completa ya actualizada, para no necesitar una segunda petición. */
+export interface WatchlistAddResponse {
+  type: 'WATCHLIST_ADD';
+  symbol: string;
+  added: boolean;
+  symbols: string[];
+}
+
+export interface WatchlistRemoveResponse {
+  type: 'WATCHLIST_REMOVE';
+  symbol: string;
+  removed: boolean;
+  symbols: string[];
+}
+
 /** Unión discriminada de todo lo que `POST /command` puede devolver con 200. */
 export type CommandResponse =
   | SummaryResponse
@@ -176,7 +192,9 @@ export type CommandResponse =
   | FinancialsResponse
   | CorrelationsResponse
   | ReportsResponse
-  | ValueChainResponse;
+  | ValueChainResponse
+  | WatchlistAddResponse
+  | WatchlistRemoveResponse;
 
 /** Detalle de error tal cual lo construye `command_router.py::_data_error_detail`. */
 export interface CommandErrorDetail {

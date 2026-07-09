@@ -13,6 +13,8 @@ describe('panelForType', () => {
     expect(panelForType('CORR')).toBe('correlations');
     expect(panelForType('REPORTS')).toBe('reports');
     expect(panelForType('MAP')).toBe('value_chain');
+    expect(panelForType('WATCHLIST_ADD')).toBe('watch');
+    expect(panelForType('WATCHLIST_REMOVE')).toBe('watch');
   });
 
   it('cae a "unknown" ante un type no reconocido, sin reventar', () => {

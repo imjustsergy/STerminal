@@ -6,12 +6,17 @@
   import { panelForResponse, type PanelKind } from './lib/dispatch';
   import type { CommandResponse } from './lib/types';
 
-  let kind: PanelKind | 'welcome' | 'watch' | 'error' = $state('welcome');
+  let kind: PanelKind | 'welcome' | 'error' = $state('welcome');
   let response: CommandResponse | null = $state(null);
   let errorMessage = $state('');
   let errorSuggestions: string[] = $state([]);
   let activeRange: Range = $state('1D');
   let lastRawInput = $state('');
+  // feat-20: se incrementa cada vez que WATCH ADD/REMOVE tiene éxito desde la barra
+  // de comando (kind ya vale 'watch', así que no remontaría solo) — PanelRouter usa
+  // este contador como key para forzar que WatchlistPanel se remonte y recargue la
+  // lista persistida real.
+  let watchlistVersion = $state(0);
 
   function showError(err: unknown): void {
     if (err instanceof CommandApiError) {
@@ -29,6 +34,9 @@
       const result = await postCommand(raw, { resolution });
       response = result;
       kind = panelForResponse(result);
+      if (result.type === 'WATCHLIST_ADD' || result.type === 'WATCHLIST_REMOVE') {
+        watchlistVersion += 1;
+      }
     } catch (err) {
       showError(err);
     }
@@ -81,6 +89,7 @@
       {errorMessage}
       {errorSuggestions}
       {activeRange}
+      {watchlistVersion}
       onRangeChange={handleRangeChange}
       onNavigate={navigateToSymbol}
     />
