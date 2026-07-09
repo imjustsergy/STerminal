@@ -1,11 +1,12 @@
 """App FastAPI del backend de sterminal.
 
 Monta el health-check (feat-1), el router de despacho de comandos `POST /command`
-(feat-5), el WebSocket de cotizaciones en vivo `/stream` (feat-7) y la búsqueda de
-símbolos `GET /search` (feat-13). `Registry` y `PortfolioEngine` se instancian una
-única vez, con los providers reales, en el evento `startup` — ver
-`backend/app/deps.py` para cómo los routers los consumen inyectados
-(`app.dependency_overrides` en tests, sin red real).
+(feat-5), el WebSocket de cotizaciones en vivo `/stream` (feat-7), la búsqueda de
+símbolos `GET /search` (feat-13) y la watchlist persistida `GET /watchlist`
+(feat-20). `Registry`, `PortfolioEngine` y `WatchlistStore` se instancian una única
+vez, con los providers reales, en el evento `startup` — ver `backend/app/deps.py`
+para cómo los routers los consumen inyectados (`app.dependency_overrides` en tests,
+sin red real).
 """
 
 from __future__ import annotations
@@ -17,13 +18,20 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import command_router, search_router, stream_router
+from app import command_router, search_router, stream_router, watchlist_router
 from app.db import init_db
 from app.portfolio import PortfolioEngine
 from app.providers.crypto import CryptoProvider
 from app.providers.equity import EquityProvider
 from app.providers.fx import FxProvider
 from app.registry import Registry
+from app.watchlist_store import WatchlistStore
+
+# Watchlist de partida (feat-20) — sembrada una única vez si la tabla `watchlist` está
+# vacía, para que quien actualiza desde antes de esta feature no pierda su punto de
+# partida. Antes de feat-20 esta misma lista vivía hardcodeada en
+# frontend/src/lib/config.ts (DEFAULT_WATCHLIST) sin persistencia real.
+_DEFAULT_WATCHLIST_SEED = ["AAPL", "NVDA", "TSLA", "BTC", "ETH", "SOL", "EURUSD"]
 
 
 @asynccontextmanager
@@ -39,9 +47,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         fx_provider=FxProvider(),
     )
     conn = init_db(os.environ.get("STERMINAL_DB_PATH", "sterminal.db"))
+    watchlist_store = WatchlistStore(conn)
+    watchlist_store.seed_defaults_if_empty(_DEFAULT_WATCHLIST_SEED)
     app.state.registry = registry
     app.state.conn = conn
     app.state.portfolio_engine = PortfolioEngine(conn, registry)
+    app.state.watchlist_store = watchlist_store
     yield
 
 
@@ -64,6 +75,7 @@ app.add_middleware(
 app.include_router(command_router.router)
 app.include_router(stream_router.router)
 app.include_router(search_router.router)
+app.include_router(watchlist_router.router)
 
 
 @app.get("/health")

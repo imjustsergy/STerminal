@@ -13,6 +13,7 @@ from fastapi import Request, WebSocket
 
 from app.portfolio import PortfolioEngine
 from app.registry import Registry
+from app.watchlist_store import WatchlistStore
 
 
 def get_registry(request: Request) -> Registry:
@@ -31,3 +32,7 @@ def get_registry_ws(websocket: WebSocket) -> Registry:
 
 def get_portfolio_engine(request: Request) -> PortfolioEngine:
     return request.app.state.portfolio_engine
+
+
+def get_watchlist_store(request: Request) -> WatchlistStore:
+    return request.app.state.watchlist_store
