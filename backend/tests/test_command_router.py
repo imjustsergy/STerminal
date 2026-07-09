@@ -51,6 +51,15 @@ class FakeRegistry:
         self.report_links_result: list[ReportLink] = []
         self.value_chain_calls: list[str] = []
         self.value_chain_result: ValueChain | None = None
+        # feat-21: estado de proveedores por clase de activo, mutado por
+        # set_active_provider igual que el Registry real.
+        self.providers_result: dict[str, list[dict[str, object]]] = {
+            "equity": [{"name": "default", "active": True}],
+            "crypto": [{"name": "default", "active": True}],
+            "fx": [{"name": "default", "active": True}],
+        }
+        self.set_active_provider_calls: list[tuple[str, str]] = []
+        self.set_active_provider_error: Exception | None = None
 
     def resolve(self, symbol: str, asset_class: str | None = None) -> tuple[str, str]:
         if asset_class is not None:
@@ -159,6 +168,16 @@ class FakeRegistry:
             inputs=[],
             outputs=[],
         )
+
+    def list_providers(self, asset_class: str) -> list[dict[str, object]]:
+        return self.providers_result[asset_class]
+
+    def set_active_provider(self, asset_class: str, name: str) -> None:
+        self.set_active_provider_calls.append((asset_class, name))
+        if self.set_active_provider_error is not None:
+            raise self.set_active_provider_error
+        for entry in self.providers_result[asset_class]:
+            entry["active"] = entry["name"] == name
 
 
 class FakePortfolioEngine:
@@ -491,6 +510,54 @@ def test_watch_add_missing_symbol_returns_400_with_expected_syntax(watchlist_cli
     assert watchlist_store.add_symbol_calls == []
 
 
+# --- PROVIDERS / PROVIDERS SET (feat-21) ---------------------------------------
+
+
+def test_providers_lists_status_of_all_asset_classes(client) -> None:
+    test_client, registry, _ = client
+    response = _post(test_client, "PROVIDERS")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "PROVIDERS"
+    assert body["providers"] == {
+        "equity": [{"name": "default", "active": True}],
+        "crypto": [{"name": "default", "active": True}],
+        "fx": [{"name": "default", "active": True}],
+    }
+
+
+def test_providers_set_switches_active_provider(client) -> None:
+    test_client, registry, _ = client
+    registry.providers_result["equity"].append({"name": "alphavantage", "active": False})
+    response = _post(test_client, "PROVIDERS SET EQUITY ALPHAVANTAGE")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "PROVIDERS"
+    assert body["providers"]["equity"] == [
+        {"name": "default", "active": False},
+        {"name": "alphavantage", "active": True},
+    ]
+    assert registry.set_active_provider_calls == [("equity", "alphavantage")]
+
+
+def test_providers_set_unknown_provider_returns_400(client) -> None:
+    test_client, registry, _ = client
+    registry.set_active_provider_error = ValueError(
+        "proveedor desconocido para 'equity': 'bogus'"
+    )
+    response = _post(test_client, "PROVIDERS SET EQUITY BOGUS")
+    assert response.status_code == 400
+
+
+def test_providers_set_missing_args_returns_400_with_expected_syntax(client) -> None:
+    test_client, registry, _ = client
+    response = _post(test_client, "PROVIDERS SET EQUITY")
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "PROVIDERS SET <CLASE> <PROVEEDOR>" in detail
+    assert registry.set_active_provider_calls == []
+
+
 # --- HELP --------------------------------------------------------------
 
 
@@ -515,6 +582,8 @@ def test_help_lists_all_commands(client) -> None:
     assert "PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>" in usages
     assert "WATCH ADD <SÍMBOLO>" in usages
     assert "WATCH REMOVE <SÍMBOLO>" in usages
+    assert "PROVIDERS" in usages
+    assert "PROVIDERS SET <CLASE> <PROVEEDOR>" in usages
     for entry in body["commands"]:
         assert entry["description"]
 

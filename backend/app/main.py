@@ -4,9 +4,15 @@ Monta el health-check (feat-1), el router de despacho de comandos `POST /command
 (feat-5), el WebSocket de cotizaciones en vivo `/stream` (feat-7), la búsqueda de
 símbolos `GET /search` (feat-13) y la watchlist persistida `GET /watchlist`
 (feat-20). `Registry`, `PortfolioEngine` y `WatchlistStore` se instancian una única
-vez, con los providers reales, en el evento `startup` — ver `backend/app/deps.py`
+vez, con los providers reales — incluido `AlphaVantageProvider` como alternativa de
+equity registrada pero inactiva (feat-21) —, en el evento `startup` — ver `backend/app/deps.py`
 para cómo los routers los consumen inyectados (`app.dependency_overrides` en tests,
 sin red real).
+
+`load_dotenv()` (feat-21) carga `backend/.env` si existe — sin tocar variables ya
+presentes en el entorno (comportamiento por defecto de `python-dotenv`), así que
+`backend/tests/conftest.py` (que fija sus propias variables antes de importar la
+app) no se ve afectado. Sin ese fichero (ej. en CI), es un no-op silencioso.
 """
 
 from __future__ import annotations
@@ -15,17 +21,21 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import command_router, search_router, stream_router, watchlist_router
 from app.db import init_db
 from app.portfolio import PortfolioEngine
+from app.providers.alphavantage import AlphaVantageProvider
 from app.providers.crypto import CryptoProvider
 from app.providers.equity import EquityProvider
 from app.providers.fx import FxProvider
 from app.registry import Registry
 from app.watchlist_store import WatchlistStore
+
+load_dotenv()
 
 # Watchlist de partida (feat-20) — sembrada una única vez si la tabla `watchlist` está
 # vacía, para que quien actualiza desde antes de esta feature no pierda su punto de
@@ -46,6 +56,16 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         crypto_provider=CryptoProvider(),
         fx_provider=FxProvider(),
     )
+    # feat-21: Alpha Vantage como fuente alternativa de equity, registrada pero
+    # nunca activa por defecto — el owner la enciende en caliente vía
+    # "PROVIDERS SET EQUITY ALPHAVANTAGE". Sin ALPHAVANTAGE_API_KEY (variable de
+    # entorno, ver backend/.env.example), sterminal sigue funcionando igual que
+    # antes de esta feature, solo con yfinance.
+    alphavantage_api_key = os.environ.get("ALPHAVANTAGE_API_KEY")
+    if alphavantage_api_key:
+        registry.register_provider(
+            "equity", "alphavantage", AlphaVantageProvider(api_key=alphavantage_api_key)
+        )
     conn = init_db(os.environ.get("STERMINAL_DB_PATH", "sterminal.db"))
     watchlist_store = WatchlistStore(conn)
     watchlist_store.seed_defaults_if_empty(_DEFAULT_WATCHLIST_SEED)

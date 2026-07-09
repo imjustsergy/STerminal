@@ -91,6 +91,11 @@ class UnknownSymbolError(ValueError):
     """No se pudo determinar la clase de activo del símbolo, o el hint es inválido."""
 
 
+class UnknownProviderError(ValueError):
+    """`set_active_provider` (feat-21) con una clase de activo o nombre de proveedor
+    que no existe."""
+
+
 def _detect_asset_class(upper_symbol: str) -> AssetClass:
     """Heurística por defecto (sin hint), en orden de prioridad: fx > alias cripto > equity."""
     if (
@@ -129,6 +134,55 @@ class Registry:
             "fx": fx_provider,
         }
         self._cache = cache if cache is not None else TTLCache()
+        # feat-21: proveedores alternativos registrables por nombre, sin tocar el
+        # constructor (retrocompatible con todo el código/tests existentes). El
+        # provider de siempre de cada clase de activo vive bajo el nombre reservado
+        # "default"; cualquier otro se registra aparte y no se activa solo.
+        self._alt_providers: dict[AssetClass, dict[str, Provider]] = {
+            "equity": {},
+            "crypto": {},
+            "fx": {},
+        }
+        self._active_provider_name: dict[AssetClass, str] = {
+            "equity": "default",
+            "crypto": "default",
+            "fx": "default",
+        }
+
+    def register_provider(self, asset_class: AssetClass, name: str, provider: Provider) -> None:
+        """Registra `provider` bajo `name` para `asset_class` (feat-21) — no lo
+        activa. `"default"` es un nombre reservado (el provider de siempre pasado al
+        constructor)."""
+        if asset_class not in _ASSET_CLASSES:
+            raise UnknownProviderError(f"clase de activo desconocida: {asset_class!r}")
+        if name == "default":
+            raise UnknownProviderError("'default' es un nombre reservado")
+        self._alt_providers[asset_class][name] = provider
+
+    def list_providers(self, asset_class: AssetClass) -> list[dict[str, object]]:
+        """Estado de los proveedores disponibles para `asset_class` (comando
+        `PROVIDERS`, feat-21): `"default"` siempre presente, más cualquier
+        alternativo registrado, con `active` marcando el que atiende ahora mismo."""
+        if asset_class not in _ASSET_CLASSES:
+            raise UnknownProviderError(f"clase de activo desconocida: {asset_class!r}")
+        active = self._active_provider_name[asset_class]
+        result: list[dict[str, object]] = [{"name": "default", "active": active == "default"}]
+        for name in self._alt_providers[asset_class]:
+            result.append({"name": name, "active": active == name})
+        return result
+
+    def set_active_provider(self, asset_class: AssetClass, name: str) -> None:
+        """Cambia en caliente el proveedor activo de `asset_class` (comando
+        `PROVIDERS SET`, feat-21). `name` debe ser `"default"` o un nombre ya
+        registrado vía `register_provider` — cualquier otro valor es un error claro,
+        no un `KeyError`."""
+        if asset_class not in _ASSET_CLASSES:
+            raise UnknownProviderError(f"clase de activo desconocida: {asset_class!r}")
+        if name != "default" and name not in self._alt_providers[asset_class]:
+            raise UnknownProviderError(
+                f"proveedor desconocido para {asset_class!r}: {name!r}"
+            )
+        self._active_provider_name[asset_class] = name
 
     def resolve(
         self, symbol: str, asset_class: AssetClass | None = None
@@ -156,7 +210,13 @@ class Registry:
         return resolved_class, upper
 
     def _provider_for(self, asset_class: AssetClass) -> Provider:
-        return self._providers[asset_class]
+        """Consulta el proveedor activo de `asset_class` (feat-21) — `"default"` es
+        el provider de siempre pasado al constructor; cualquier otro nombre es un
+        alternativo registrado vía `register_provider`."""
+        active_name = self._active_provider_name[asset_class]
+        if active_name == "default":
+            return self._providers[asset_class]
+        return self._alt_providers[asset_class][active_name]
 
     def get_quote(self, symbol: str, asset_class: AssetClass | None = None) -> Quote:
         resolved_class, internal_symbol = self.resolve(symbol, asset_class)

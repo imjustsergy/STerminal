@@ -77,6 +77,8 @@ _COMMAND_DESCRIPTIONS: dict[CommandType, str] = {
     CommandType.WATCHLIST: "Watchlist en vivo (ver WebSocket /stream, feature 7).",
     CommandType.WATCHLIST_ADD: "Añade un símbolo a la watchlist persistida (feat-20): WATCH ADD <SÍMBOLO>.",
     CommandType.WATCHLIST_REMOVE: "Quita un símbolo de la watchlist persistida (feat-20): WATCH REMOVE <SÍMBOLO>.",
+    CommandType.PROVIDERS: "Lista los proveedores de datos disponibles por clase de activo y cuál está activo (feat-21).",
+    CommandType.PROVIDERS_SET: "Cambia el proveedor activo de una clase de activo (feat-21): PROVIDERS SET <CLASE> <PROVEEDOR>.",
     CommandType.MOVERS: "Mayores subidas/bajadas del día (fuera de alcance del MVP).",
     CommandType.HELP: "Esta lista de comandos soportados.",
 }
@@ -141,6 +143,14 @@ def _help_entries() -> list[dict[str, str]]:
             "usage": "WATCH REMOVE <SÍMBOLO>",
             "type": CommandType.WATCHLIST_REMOVE.value,
             "description": _COMMAND_DESCRIPTIONS[CommandType.WATCHLIST_REMOVE],
+        }
+    )
+    # PROVIDERS SET (feat-21) — tercera excepción documentada, mismo motivo.
+    entries.append(
+        {
+            "usage": "PROVIDERS SET <CLASE> <PROVEEDOR>",
+            "type": CommandType.PROVIDERS_SET.value,
+            "description": _COMMAND_DESCRIPTIONS[CommandType.PROVIDERS_SET],
         }
     )
     return entries
@@ -255,6 +265,27 @@ def _dispatch_watchlist_remove(command: Command, watchlist_store: WatchlistStore
         "removed": removed,
         "symbols": watchlist_store.list_symbols(),
     }
+
+
+def _dispatch_providers(registry: Registry) -> dict[str, Any]:
+    """feat-21. Estado de los proveedores disponibles por clase de activo."""
+    return {
+        "type": CommandType.PROVIDERS.value,
+        "providers": {
+            asset_class: registry.list_providers(asset_class)
+            for asset_class in ("equity", "crypto", "fx")
+        },
+    }
+
+
+def _dispatch_providers_set(command: Command, registry: Registry) -> dict[str, Any]:
+    """feat-21. Cambia el proveedor activo en caliente y devuelve el estado
+    actualizado — mismo espíritu que `_dispatch_watchlist_add` (respuesta ya
+    refrescada, sin que el frontend necesite una segunda petición)."""
+    assert command.target_asset_class is not None
+    assert command.target_provider is not None
+    registry.set_active_provider(command.target_asset_class, command.target_provider)
+    return _dispatch_providers(registry)
 
 
 def _dispatch_help() -> dict[str, Any]:
@@ -381,6 +412,10 @@ def _dispatch(
         return _dispatch_watchlist_add(command, watchlist_store)
     if command.type == CommandType.WATCHLIST_REMOVE:
         return _dispatch_watchlist_remove(command, watchlist_store)
+    if command.type == CommandType.PROVIDERS:
+        return _dispatch_providers(registry)
+    if command.type == CommandType.PROVIDERS_SET:
+        return _dispatch_providers_set(command, registry)
     if command.type == CommandType.HELP:
         return _dispatch_help()
     if command.type == CommandType.NEWS:

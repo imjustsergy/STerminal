@@ -13,6 +13,7 @@ from app.commands import (
     CommandType,
     EmptyCommandError,
     InvalidPortAddArgsError,
+    InvalidProvidersSetArgsError,
     InvalidSymbolError,
     InvalidWatchArgsError,
     MissingSymbolError,
@@ -30,7 +31,7 @@ from app.commands import (
 
 def test_symbol_and_no_symbol_function_tables_cover_spec_and_dont_overlap() -> None:
     assert set(_SYMBOL_FUNCTIONS) == {"GP", "NEWS", "FA", "CORR", "REPORTS", "MAP"}
-    assert set(_NO_SYMBOL_FUNCTIONS) == {"PORT", "WATCH", "MOVERS", "HELP"}
+    assert set(_NO_SYMBOL_FUNCTIONS) == {"PORT", "WATCH", "PROVIDERS", "MOVERS", "HELP"}
     assert set(_SYMBOL_FUNCTIONS).isdisjoint(_NO_SYMBOL_FUNCTIONS)
 
 
@@ -340,6 +341,54 @@ def test_watch_unknown_second_token_falls_through_to_generic_path() -> None:
         parse_command("WATCH FOO")
 
 
+# --- PROVIDERS / PROVIDERS SET (feat-21) — tercera excepción de 4 tokens ----
+
+
+def test_providers_alone_is_no_symbol_function() -> None:
+    command = parse_command("PROVIDERS")
+    assert command.type == CommandType.PROVIDERS
+    assert command.symbol is None
+
+
+@pytest.mark.parametrize(
+    "raw,expected_asset_class,expected_provider",
+    [
+        ("PROVIDERS SET EQUITY ALPHAVANTAGE", "equity", "alphavantage"),
+        ("providers set equity alphavantage", "equity", "alphavantage"),
+        ("PROVIDERS SET EQUITY DEFAULT", "equity", "default"),
+    ],
+)
+def test_providers_set_valid_syntax(
+    raw: str, expected_asset_class: str, expected_provider: str
+) -> None:
+    command = parse_command(raw)
+    assert command.type == CommandType.PROVIDERS_SET
+    assert command.symbol is None
+    assert command.target_asset_class == expected_asset_class
+    assert command.target_provider == expected_provider
+    assert command.raw == raw
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "PROVIDERS SET",
+        "PROVIDERS SET EQUITY",
+        "PROVIDERS SET EQUITY ALPHAVANTAGE EXTRA",
+    ],
+)
+def test_providers_set_wrong_token_count_raises(raw: str) -> None:
+    with pytest.raises(InvalidProvidersSetArgsError):
+        parse_command(raw)
+
+
+def test_providers_unknown_second_token_falls_through_to_generic_path() -> None:
+    """`PROVIDERS FOO` (no es `SET`) no encaja en el caso especial — sigue el
+    camino genérico de 2 tokens, mismo criterio que `WATCH FOO`."""
+    with pytest.raises(UnknownCommandError):
+        parse_command("PROVIDERS FOO")
+
+
 # --- Todas las filas de spec.md sección 4, de un vistazo --------------------
 
 
@@ -355,6 +404,7 @@ def test_watch_unknown_second_token_falls_through_to_generic_path() -> None:
         ("AAPL MAP", Command(CommandType.MAP, "AAPL", "AAPL MAP")),
         ("PORT", Command(CommandType.PORTFOLIO, None, "PORT")),
         ("WATCH", Command(CommandType.WATCHLIST, None, "WATCH")),
+        ("PROVIDERS", Command(CommandType.PROVIDERS, None, "PROVIDERS")),
         ("EURUSD", Command(CommandType.SUMMARY, "EURUSD", "EURUSD")),
         ("MOVERS", Command(CommandType.MOVERS, None, "MOVERS")),
         ("HELP", Command(CommandType.HELP, None, "HELP")),
