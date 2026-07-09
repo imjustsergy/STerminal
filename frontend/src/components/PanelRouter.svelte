@@ -68,7 +68,9 @@
 {:else if kind === 'error'}
   <ErrorPanel message={errorMessage} suggestions={errorSuggestions} />
 {:else if kind === 'summary' && response?.type === 'SUMMARY'}
-  <SummaryPanel {response} />
+  {#key response}
+    <SummaryPanel {response} {onNavigate} />
+  {/key}
 {:else if kind === 'graph_price' && response?.type === 'GRAPH_PRICE'}
   <ChartPanel {response} {activeRange} {onRangeChange} />
 {:else if kind === 'portfolio' && response?.type === 'PORTFOLIO'}
