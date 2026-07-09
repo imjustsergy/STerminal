@@ -57,6 +57,15 @@ case "$action" in
       echo "Worktree eliminado: ${worktree_path}"
     fi
     if git -C "$repo_root" show-ref --verify --quiet "refs/heads/${branch}"; then
+      # Auditoría 2026-07-08 (docs/sys/audit-infra-agentes-2026-07-08.md, hallazgo 7):
+      # borrar la rama local sin pushearla antes perdía el historial por completo en
+      # bucles sin PR (donde GitHub nunca llega a ver la rama). Push best-effort antes
+      # de borrar — si falla (sin red, sin remoto), se avisa pero no bloquea el close.
+      if git -C "$repo_root" push origin "$branch" --quiet 2>/dev/null; then
+        echo "Rama pusheada a origin: ${branch}"
+      else
+        echo "Aviso: no se pudo pushear '${branch}' a origin antes de borrarla — revisa manualmente si hace falta conservar su historial." >&2
+      fi
       git -C "$repo_root" branch -D "$branch"
       echo "Rama local eliminada: ${branch}"
     else
