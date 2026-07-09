@@ -171,3 +171,68 @@ abrir su propio panel), posible resolución intradía real para `GP` (hoy la má
 diaria), y pulido general de UX tras varias iteraciones de features nuevas seguidas.
 Con el objetivo explícito del owner ya cubierto en su totalidad, el bucle se considera
 satisfecho en 9/10.
+
+---
+
+## Segundo objetivo del bucle — mapa de cadena de valor estilo mindmap (2026-07-09)
+
+> Objetivo nuevo y distinto del anterior (que ya cerró en 9/10): "ver las relaciones de
+> materias primas de entrada a un activo y salidas de ese activo a otras empresas,
+> estilo mindmap". Mismo criterio de honestidad — no inflar el número. Este bucle itera
+> **sobre la misma feature** hasta 9/10, no sobre features distintas.
+
+### Tras feat-17 (comando MAP — mapa de cadena de valor, primera iteración) — 2026-07-09
+
+**Score: 7.5/10**
+
+- **Funcionalidad (8/10):** entrega la interpretación honesta e implementable del
+  objetivo — taxonomía curada sector → materia prima de entrada / sector de salida,
+  con cotizaciones reales en vivo para cada nodo. Verificados en vivo los 6 escenarios
+  de los criterios de aceptación (sector mapeado con 2 inputs, sector mapeado con 2
+  outputs, sector sin mapeo, crypto, fx, símbolo inexistente) — todos correctos. Límite
+  honesto y documentado: solo 6 de los 11 sectores GICS de yfinance tienen taxonomía
+  curada (`Financial Services`, `Healthcare`, `Real Estate`, `Consumer Cyclical`,
+  `Communication Services` quedan sin mapear a propósito, en vez de forzar una relación
+  débil) — resta puntos porque una parte real de símbolos consultables no tendrá mapa
+  hasta que se decida ampliar la tabla.
+- **UX (6/10):** primer panel de la app con visualización real tipo mindmap (SVG a
+  mano, nodo central + ramas conectadas, color por signo, estados vacíos explícitos
+  distintos por caso) — cumple literalmente el "estilo mindmap" pedido, no una lista
+  disfrazada. Pero **no se pudo confirmar visualmente en un navegador real esta
+  sesión** (fallo persistente de la extensión Claude-in-Chrome, ver nota abajo) — la
+  calidad real del layout (solapamiento de texto, legibilidad, escalado del
+  `viewBox`) queda sin confirmar por inspección humana, solo por aserciones
+  estructurales sobre el DOM. Es el mayor riesgo no resuelto de esta iteración.
+- **Calidad de datos (8/10):** cada cotización de cada nodo (centro + inputs + outputs)
+  es un dato de mercado real y en vivo, verificado contra yfinance real en los 6
+  escenarios. La única pieza no sacada de una API es la relación input/output en sí
+  (editorial, curada a mano) — declarada como tal de forma prominente tanto en el
+  código (`value_chain.py`) como en el propio panel (nota visible al usuario), mismo
+  criterio de transparencia que `_REFERENCE_UNIVERSE` en feat-15.
+- **Robustez (8/10):** 268 tests backend (incluyendo un proxy que falla al cotizar, un
+  proxy con precio `0.0`, caché con TTL, y el criterio de "símbolo no encontrado" en el
+  nodo central) + 77 tests frontend (incluyendo aserciones estructurales sobre el SVG
+  renderizado: número de círculos, número de líneas de conexión, contenido de texto de
+  cada nodo, los cuatro casos de estado vacío). Build limpio. Es el primer componente
+  SVG hecho a mano de la app — más riesgo de código nuevo no probado en el mundo real
+  que los paneles anteriores (listas/grids ya establecidos).
+
+**Nota sobre la verificación visual pendiente:** se intentó abrir el preview en un
+navegador real (Claude-in-Chrome) para confirmar el mindmap visualmente, tal como pide
+explícitamente el criterio de aceptación de `feat-17-value-chain-map.md`
+("verificable visualmente"). La extensión devolvió `Frame with ID 0 is showing error
+page` de forma persistente en dos pestañas distintas y varios reintentos, pese a que
+`curl` confirmaba `200 OK` y la consola no mostraba errores — un fallo de la propia
+herramienta de navegador en esta sesión, no del código. Se documenta explícitamente en
+vez de darlo por bueno sin comprobar — coherente con el principio de "verificar en
+vivo antes de mergear" que ha guiado el resto del proyecto.
+
+**Qué falta para llegar a 9/10:** (1) confirmar visualmente el mindmap en un navegador
+real — reintentar la verificación con Claude-in-Chrome en la siguiente iteración, o
+pedir al owner una comprobación manual si el fallo persiste; (2) si la inspección
+visual revela problemas de layout (solapamiento, texto cortado, escalado), corregirlos;
+(3) evaluar si ampliar la taxonomía curada a más sectores (o documentar mejor por qué
+no) sube la puntuación de funcionalidad. No se mergea a `main` — PR abierto
+(`feature-17-value-chain-map`) pendiente de review del owner, siguiendo el flujo
+estándar de `workflow.md` (este bucle, a diferencia del anterior, no delegó merge
+directo).

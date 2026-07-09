@@ -656,6 +656,56 @@ donde consultarlos.
 - **Dependencias:** ninguna nueva — misma librería `httpx` ya usada por
   `CryptoProvider`.
 
+### feat-17 — Mapa de cadena de valor (comando `MAP`, estilo mindmap)
+
+Sexta iteración del bucle post-MVP, primer bucle con objetivo de una sola feature
+iterada hasta 9/10 en vez de una feature nueva por iteración (score de partida: 9/10
+tras feat-16, pero para un objetivo distinto — ver `docs/sys/scoring.md`). El owner
+pide ver, para un símbolo, sus materias primas de entrada y sus salidas a otras
+empresas, en formato mindmap.
+
+Ninguna API gratuita ya integrada expone relaciones reales de proveedores/clientes por
+empresa (mismo problema de fondo que motivó feat-15 con las correlaciones). Solución
+honesta: taxonomía curada sector → materia prima de entrada / sector de salida, usando
+ETFs reales y líquidos como proxy de cada nodo — la relación en sí es editorial
+(documentada como tal), la cotización de cada nodo es un dato de mercado real y en
+vivo.
+
+- **`app/value_chain.py`** (nuevo, puro): `SECTOR_INPUTS`/`SECTOR_OUTPUTS` — solo 6
+  sectores con relación económica clara (`Energy`, `Basic Materials`, `Technology`,
+  `Consumer Defensive`, `Industrials`, `Utilities`); el resto de sectores GICS de
+  yfinance se deja sin mapear a propósito, devolviendo listas vacías documentadas en
+  vez de forzar una relación débil.
+- **`ValueChain`** (`backend/app/models.py`): `sector`, `center: Quote`, `inputs:
+  list[Quote]`, `outputs: list[Quote]` — cada nodo es una `Quote` real.
+- **`Registry.get_value_chain(symbol, asset_class=None)`**: cotización real del centro
+  + `sector` vía `get_financials` (ya cacheado) + cotización real de cada proxy de la
+  taxonomía. Un proxy que falla al cotizar (o devuelve precio `0.0`) se omite sin
+  romper el mapa completo — mismo criterio que `get_correlations` (feat-15).
+- **`CommandType.MAP`** en el parser. `command_router.py` despacha a
+  `_dispatch_value_chain`: el nodo central sigue el criterio de "símbolo no
+  encontrado" de `SUMMARY`/`GRAPH_PRICE` (precio `0.0` → `400`); `inputs`/`outputs`
+  vacíos es `200` válido. Aplica de entrada el fix de identidad de símbolo
+  (`center["symbol"]` sobreescrito con `command.symbol`) en vez de esperar a
+  encontrarlo en producción, como sí pasó en feat-14.
+- **`ValueChainPanel.svelte`**: mindmap real en SVG a mano (sin nueva dependencia) —
+  nodo central + entradas en columna a la izquierda + salidas a la derecha, cada una
+  conectada al centro con una línea, coloreada por signo. Estado vacío explícito
+  distinto para "crypto/fx sin sector GICS" vs. "sector equity sin mapeo curado".
+- Verificado en vivo contra yfinance/CoinGecko/frankfurter reales: `AAPL MAP`
+  (Technology, con `SOXX`/`CPER`/`XLY` reales), `XOM MAP` (Energy, con `OIH` y
+  `JETS`+`XLI`), `JPM MAP` (Financial Services, sin mapeo → vacío), `BTC MAP`/`EURUSD
+  MAP` (sector `null` → vacío), y un símbolo inexistente (`400`) — los 6 escenarios de
+  los criterios de aceptación de `feat-17-value-chain-map.md` correctos.
+- **Limitación de verificación conocida:** el criterio de aceptación "verificable
+  visualmente" del mindmap no se pudo comprobar con una captura de navegador real (fallo
+  persistente de la extensión Claude-in-Chrome en esta sesión, no del código) — la
+  verificación de la topología del SVG (nodo central, número de nodos, líneas de
+  conexión, contenido de cada nodo) se hizo por vía de tests automatizados sobre el DOM
+  renderizado, no por inspección visual humana. Pendiente de confirmación visual por el
+  owner.
+- **Dependencias:** ninguna nueva — SVG a mano, sin librería de gráficos.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
@@ -672,6 +722,7 @@ cripto vs. acción). Historial con ↑/↓ y autocompletado.
 | `AAPL FA` | Datos financieros: cap. de mercado, PER, BPA, dividendo, beta, sector. |
 | `AAPL CORR` | Correlación de rendimientos frente a una cesta de referencia fija. |
 | `AAPL REPORTS` | Enlaces externos a fuentes de reports (Yahoo Finance, SEC EDGAR...). |
+| `AAPL MAP` | Mapa de cadena de valor (mindmap): materias primas de entrada / salidas. |
 | `PORT` | Cartera: posiciones, P&L, asignación. |
 | `WATCH` | Watchlist en vivo. |
 | `EURUSD` | Cotización forex. |
