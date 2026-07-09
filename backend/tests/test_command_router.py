@@ -21,6 +21,7 @@ from app.models import (
     ReportLink,
     SymbolMatch,
     ValueChain,
+    ValueChainNode,
 )
 from app.portfolio import Holding, PortfolioSummary
 
@@ -528,11 +529,20 @@ def test_map_mapped_sector_returns_center_inputs_outputs(client) -> None:
             timestamp="2026-07-07T00:00:00Z",
         ),
         inputs=[
-            Quote(symbol="SOXX", price=200.0, currency="USD", change=1.0, change_percent=0.5, timestamp="2026-07-07T00:00:00Z"),
-            Quote(symbol="CPER", price=30.0, currency="USD", change=-0.5, change_percent=-1.5, timestamp="2026-07-07T00:00:00Z"),
+            ValueChainNode(
+                quote=Quote(symbol="SOXX", price=200.0, currency="USD", change=1.0, change_percent=0.5, timestamp="2026-07-07T00:00:00Z"),
+                description="ETF de semiconductores",
+            ),
+            ValueChainNode(
+                quote=Quote(symbol="CPER", price=30.0, currency="USD", change=-0.5, change_percent=-1.5, timestamp="2026-07-07T00:00:00Z"),
+                description="ETF de cobre",
+            ),
         ],
         outputs=[
-            Quote(symbol="XLY", price=180.0, currency="USD", change=0.8, change_percent=0.4, timestamp="2026-07-07T00:00:00Z"),
+            ValueChainNode(
+                quote=Quote(symbol="XLY", price=180.0, currency="USD", change=0.8, change_percent=0.4, timestamp="2026-07-07T00:00:00Z"),
+                description="ETF de consumo discrecional",
+            ),
         ],
     )
     response = _post(test_client, "AAPL MAP")
@@ -543,8 +553,9 @@ def test_map_mapped_sector_returns_center_inputs_outputs(client) -> None:
     assert body["asset_class"] == "equity"
     assert body["sector"] == "Technology"
     assert body["center"]["symbol"] == "AAPL"
-    assert {n["symbol"] for n in body["inputs"]} == {"SOXX", "CPER"}
-    assert {n["symbol"] for n in body["outputs"]} == {"XLY"}
+    assert {n["quote"]["symbol"] for n in body["inputs"]} == {"SOXX", "CPER"}
+    assert {n["quote"]["symbol"] for n in body["outputs"]} == {"XLY"}
+    assert all(n["description"] for n in body["inputs"])
     assert registry.value_chain_calls == ["AAPL"]
 
 

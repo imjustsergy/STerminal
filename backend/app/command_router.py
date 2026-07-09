@@ -278,8 +278,8 @@ def _dispatch_value_chain(command: Command, registry: Registry) -> dict[str, Any
         "asset_class": asset_class,
         "sector": value_chain.sector,
         "center": center_payload,
-        "inputs": [dataclasses.asdict(q) for q in value_chain.inputs],
-        "outputs": [dataclasses.asdict(q) for q in value_chain.outputs],
+        "inputs": [dataclasses.asdict(n) for n in value_chain.inputs],
+        "outputs": [dataclasses.asdict(n) for n in value_chain.outputs],
     }
 
 

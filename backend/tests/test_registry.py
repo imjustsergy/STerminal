@@ -522,11 +522,13 @@ def test_get_value_chain_mapped_sector_fetches_real_proxy_quotes() -> None:
     equity.financials_sector = "Technology"
     value_chain = registry.get_value_chain("AAPL")
     assert value_chain.sector == "Technology"
-    assert {q.symbol for q in value_chain.inputs} == {"SOXX", "CPER"}
-    assert {q.symbol for q in value_chain.outputs} == {"XLY"}
+    assert {n.quote.symbol for n in value_chain.inputs} == {"SOXX", "CPER"}
+    assert {n.quote.symbol for n in value_chain.outputs} == {"XLY"}
     assert "SOXX" in equity.quote_calls
     assert "CPER" in equity.quote_calls
     assert "XLY" in equity.quote_calls
+    assert all(n.description for n in value_chain.inputs)
+    assert all(n.description for n in value_chain.outputs)
 
 
 def test_get_value_chain_none_sector_returns_empty_inputs_outputs() -> None:
@@ -544,7 +546,7 @@ def test_get_value_chain_skips_proxy_that_raises_without_failing_the_whole_map()
     equity.financials_sector = "Technology"
     equity.quote_raises_for = {"SOXX"}
     value_chain = registry.get_value_chain("AAPL")
-    input_symbols = {q.symbol for q in value_chain.inputs}
+    input_symbols = {n.quote.symbol for n in value_chain.inputs}
     assert "SOXX" not in input_symbols
     assert "CPER" in input_symbols
 

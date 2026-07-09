@@ -3,7 +3,13 @@ tarea 1."""
 
 from __future__ import annotations
 
-from app.value_chain import SECTOR_INPUTS, SECTOR_OUTPUTS, value_chain_symbols
+from app.value_chain import (
+    PROXY_DESCRIPTIONS,
+    SECTOR_INPUTS,
+    SECTOR_OUTPUTS,
+    describe_proxy,
+    value_chain_symbols,
+)
 
 
 def test_none_sector_returns_empty_lists() -> None:
@@ -45,3 +51,21 @@ def test_no_ticker_appears_as_both_input_and_output_of_the_same_sector() -> None
         inputs = set(SECTOR_INPUTS[sector])
         outputs = set(SECTOR_OUTPUTS[sector])
         assert inputs.isdisjoint(outputs), f"{sector!r} tiene solape input/output"
+
+
+def test_every_proxy_in_the_taxonomy_has_a_description() -> None:
+    """El ticker solo no le dice nada a un usuario que no lo conozca de memoria — cada
+    proxy usado en SECTOR_INPUTS/SECTOR_OUTPUTS debe tener su entrada en
+    PROXY_DESCRIPTIONS (feedback en vivo del owner tras ver el mindmap sin contexto)."""
+    all_proxies = {s for symbols in SECTOR_INPUTS.values() for s in symbols}
+    all_proxies |= {s for symbols in SECTOR_OUTPUTS.values() for s in symbols}
+    missing = all_proxies - set(PROXY_DESCRIPTIONS)
+    assert not missing, f"proxies sin descripción: {missing}"
+
+
+def test_describe_proxy_returns_known_description() -> None:
+    assert describe_proxy("SOXX") == PROXY_DESCRIPTIONS["SOXX"]
+
+
+def test_describe_proxy_degrades_gracefully_for_unknown_symbol() -> None:
+    assert "ZZZZ" in describe_proxy("ZZZZ")

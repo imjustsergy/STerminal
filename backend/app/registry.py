@@ -28,10 +28,11 @@ from app.models import (
     ReportLink,
     SymbolMatch,
     ValueChain,
+    ValueChainNode,
 )
 from app.providers._util import normalize_resolution
 from app.providers.base import Provider
-from app.value_chain import value_chain_symbols
+from app.value_chain import describe_proxy, value_chain_symbols
 
 AssetClass = Literal["equity", "crypto", "fx"]
 
@@ -297,8 +298,8 @@ class Registry:
         financials = self.get_financials(symbol, asset_class)
         input_symbols, output_symbols = value_chain_symbols(financials.sector)
 
-        def _quotes(symbols: list[str]) -> list[Quote]:
-            quotes: list[Quote] = []
+        def _nodes(symbols: list[str]) -> list[ValueChainNode]:
+            nodes: list[ValueChainNode] = []
             for proxy_symbol in symbols:
                 try:
                     quote = self.get_quote(proxy_symbol, "equity")
@@ -311,14 +312,14 @@ class Registry:
                     # caso (son ETFs líquidos reales), pero si pasara, se omite en vez
                     # de mostrar un nodo con precio 0.
                     continue
-                quotes.append(quote)
-            return quotes
+                nodes.append(ValueChainNode(quote=quote, description=describe_proxy(proxy_symbol)))
+            return nodes
 
         value_chain = ValueChain(
             sector=financials.sector,
             center=center,
-            inputs=_quotes(input_symbols),
-            outputs=_quotes(output_symbols),
+            inputs=_nodes(input_symbols),
+            outputs=_nodes(output_symbols),
         )
         self._cache.set(cache_key, value_chain, HISTORY_DAILY_TTL_SECONDS)
         return value_chain

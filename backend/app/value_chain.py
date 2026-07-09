@@ -40,6 +40,30 @@ SECTOR_OUTPUTS: dict[str, list[str]] = {
     "Utilities": ["XLI"],  # industriales consumen electricidad
 }
 
+# Descripción en prosa de cada proxy ETF — por qué representa ese rol en la cadena de
+# valor. Se muestra en la leyenda del panel (`ValueChainPanel.svelte`) porque el
+# ticker solo no le dice nada a un usuario que no conozca de memoria qué es "SOXX".
+PROXY_DESCRIPTIONS: dict[str, str] = {
+    "OIH": "ETF de servicios petroleros — equipos y servicios de perforación",
+    "USO": "ETF de petróleo crudo — coste energético de la actividad",
+    "SOXX": "ETF de semiconductores — insumo clave de dispositivos electrónicos",
+    "CPER": "ETF de cobre — materia prima de componentes y cableado electrónico",
+    "DBA": "ETF de materias primas agrícolas — insumo de alimentos y bebidas",
+    "XLB": "ETF del sector de materiales — metales y materiales industriales",
+    "UNG": "ETF de gas natural — combustible fósil",
+    "JETS": "ETF de aerolíneas — grandes consumidoras del combustible del sector",
+    "XLI": "ETF del sector industrial — consume metales, materiales y energía",
+    "XLY": "ETF de consumo discrecional — venta de electrónica/bienes de consumo",
+    "XRT": "ETF de venta minorista — distribución de productos de consumo",
+}
+
+
+def describe_proxy(symbol: str) -> str:
+    """Descripción en prosa de `symbol`, o un genérico si no está en
+    `PROXY_DESCRIPTIONS` (no debería pasar para los símbolos de `SECTOR_INPUTS`/
+    `SECTOR_OUTPUTS`, pero degrada sin reventar si la tabla se queda desactualizada)."""
+    return PROXY_DESCRIPTIONS.get(symbol, f"proxy de la cadena de valor ({symbol})")
+
 
 def value_chain_symbols(sector: str | None) -> tuple[list[str], list[str]]:
     """`(tickers_de_entrada, tickers_de_salida)` para `sector`.

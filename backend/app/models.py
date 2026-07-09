@@ -100,6 +100,16 @@ class ReportLink:
 
 
 @dataclass
+class ValueChainNode:
+    """Un nodo de entrada/salida del mapa de cadena de valor (feat-17): la cotización
+    real del proxy ETF + una descripción en prosa de qué representa y por qué está ahí
+    (feedback en vivo del owner: el ticker solo no dice nada sin contexto)."""
+
+    quote: Quote
+    description: str
+
+
+@dataclass
 class ValueChain:
     """Mapa de cadena de valor de un símbolo (feat-17, comando `MAP`): materias primas
     de entrada y sectores de salida, representados por ETFs proxy reales con
@@ -113,5 +123,5 @@ class ValueChain:
 
     sector: str | None
     center: Quote
-    inputs: list[Quote]
-    outputs: list[Quote]
+    inputs: list[ValueChainNode]
+    outputs: list[ValueChainNode]
