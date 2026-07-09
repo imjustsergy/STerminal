@@ -15,7 +15,7 @@
   import WatchlistPanel from './panels/WatchlistPanel.svelte';
 
   interface Props {
-    kind: PanelKind | 'welcome' | 'watch' | 'error';
+    kind: PanelKind | 'welcome' | 'error';
     response: CommandResponse | null;
     errorMessage?: string;
     errorSuggestions?: string[];
@@ -23,6 +23,9 @@
     onRangeChange: (range: Range) => void;
     /** feat-18: navega al SUMMARY de un símbolo clicado dentro de otro panel. */
     onNavigate: (symbol: string) => void;
+    /** feat-20: fuerza que WatchlistPanel se remonte (recargue la lista persistida)
+     * cuando WATCH ADD/REMOVE tiene éxito desde la barra de comando. */
+    watchlistVersion: number;
   }
 
   const {
@@ -33,6 +36,7 @@
     activeRange,
     onRangeChange,
     onNavigate,
+    watchlistVersion,
   }: Props = $props();
 </script>
 
@@ -55,6 +59,7 @@
       <div><span class="acc">PORT</span> <span class="dim">cartera</span></div>
       <div><span class="acc">PORT ADD AAPL 10 150.50</span> <span class="dim">añadir un lote de compra</span></div>
       <div><span class="acc">WATCH</span> <span class="dim">watchlist en vivo</span></div>
+      <div><span class="acc">WATCH ADD MSFT</span> <span class="dim">añadir un símbolo a la watchlist</span></div>
       <div><span class="acc">HELP</span> <span class="dim">lista de comandos</span></div>
     </div>
   </div>
@@ -79,7 +84,9 @@
 {:else if kind === 'value_chain' && response?.type === 'MAP'}
   <ValueChainPanel {response} {onNavigate} />
 {:else if kind === 'watch'}
-  <WatchlistPanel {onNavigate} />
+  {#key watchlistVersion}
+    <WatchlistPanel {onNavigate} />
+  {/key}
 {:else}
   <ErrorPanel message="tipo de respuesta desconocido" />
 {/if}

@@ -23,9 +23,10 @@ from pydantic import BaseModel
 
 from app import commands
 from app.commands import Command, CommandParseError, CommandType, parse_command
-from app.deps import get_portfolio_engine, get_registry
+from app.deps import get_portfolio_engine, get_registry, get_watchlist_store
 from app.portfolio import PortfolioEngine
 from app.registry import Registry
+from app.watchlist_store import WatchlistStore
 
 router = APIRouter()
 
@@ -74,6 +75,8 @@ _COMMAND_DESCRIPTIONS: dict[CommandType, str] = {
     CommandType.PORTFOLIO: "Cartera: posiciones agregadas, P&L y asignación.",
     CommandType.PORTFOLIO_ADD: "Añade un lote de compra a la cartera (feat-19): PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>.",
     CommandType.WATCHLIST: "Watchlist en vivo (ver WebSocket /stream, feature 7).",
+    CommandType.WATCHLIST_ADD: "Añade un símbolo a la watchlist persistida (feat-20): WATCH ADD <SÍMBOLO>.",
+    CommandType.WATCHLIST_REMOVE: "Quita un símbolo de la watchlist persistida (feat-20): WATCH REMOVE <SÍMBOLO>.",
     CommandType.MOVERS: "Mayores subidas/bajadas del día (fuera de alcance del MVP).",
     CommandType.HELP: "Esta lista de comandos soportados.",
 }
@@ -116,13 +119,28 @@ def _help_entries() -> list[dict[str, str]]:
                 "description": _COMMAND_DESCRIPTIONS[command_type],
             }
         )
-    # PORT ADD (feat-19) no está en ninguna de las dos tablas genéricas — es la única
-    # excepción a la sintaxis de máximo 2 tokens, se añade a mano.
+    # PORT ADD (feat-19) y WATCH ADD/REMOVE (feat-20) no están en ninguna de las dos
+    # tablas genéricas — son las excepciones documentadas a la sintaxis de máximo 2
+    # tokens, se añaden a mano.
     entries.append(
         {
             "usage": "PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>",
             "type": CommandType.PORTFOLIO_ADD.value,
             "description": _COMMAND_DESCRIPTIONS[CommandType.PORTFOLIO_ADD],
+        }
+    )
+    entries.append(
+        {
+            "usage": "WATCH ADD <SÍMBOLO>",
+            "type": CommandType.WATCHLIST_ADD.value,
+            "description": _COMMAND_DESCRIPTIONS[CommandType.WATCHLIST_ADD],
+        }
+    )
+    entries.append(
+        {
+            "usage": "WATCH REMOVE <SÍMBOLO>",
+            "type": CommandType.WATCHLIST_REMOVE.value,
+            "description": _COMMAND_DESCRIPTIONS[CommandType.WATCHLIST_REMOVE],
         }
     )
     return entries
@@ -210,6 +228,33 @@ def _dispatch_portfolio_add(
         opened_at=opened_at,
     )
     return _dispatch_portfolio(portfolio_engine)
+
+
+def _dispatch_watchlist_add(command: Command, watchlist_store: WatchlistStore) -> dict[str, Any]:
+    """feat-20. Idempotente: añadir un símbolo ya presente no es un error, `added`
+    refleja si de verdad se insertó una fila nueva. Devuelve la lista completa
+    actualizada — el frontend no necesita una segunda petición para refrescar."""
+    assert command.symbol is not None
+    added = watchlist_store.add_symbol(command.symbol)
+    return {
+        "type": CommandType.WATCHLIST_ADD.value,
+        "symbol": command.symbol,
+        "added": added,
+        "symbols": watchlist_store.list_symbols(),
+    }
+
+
+def _dispatch_watchlist_remove(command: Command, watchlist_store: WatchlistStore) -> dict[str, Any]:
+    """feat-20. Quitar un símbolo que no está no es un error, `removed` refleja si de
+    verdad existía."""
+    assert command.symbol is not None
+    removed = watchlist_store.remove_symbol(command.symbol)
+    return {
+        "type": CommandType.WATCHLIST_REMOVE.value,
+        "symbol": command.symbol,
+        "removed": removed,
+        "symbols": watchlist_store.list_symbols(),
+    }
 
 
 def _dispatch_help() -> dict[str, Any]:
@@ -321,6 +366,7 @@ def _dispatch(
     command: Command,
     registry: Registry,
     portfolio_engine: PortfolioEngine,
+    watchlist_store: WatchlistStore,
     resolution: str | None = None,
 ) -> dict[str, Any]:
     if command.type == CommandType.SUMMARY:
@@ -331,6 +377,10 @@ def _dispatch(
         return _dispatch_portfolio(portfolio_engine)
     if command.type == CommandType.PORTFOLIO_ADD:
         return _dispatch_portfolio_add(command, registry, portfolio_engine)
+    if command.type == CommandType.WATCHLIST_ADD:
+        return _dispatch_watchlist_add(command, watchlist_store)
+    if command.type == CommandType.WATCHLIST_REMOVE:
+        return _dispatch_watchlist_remove(command, watchlist_store)
     if command.type == CommandType.HELP:
         return _dispatch_help()
     if command.type == CommandType.NEWS:
@@ -389,6 +439,7 @@ def run_command(
     payload: CommandRequest,
     registry: Registry = Depends(get_registry),
     portfolio_engine: PortfolioEngine = Depends(get_portfolio_engine),
+    watchlist_store: WatchlistStore = Depends(get_watchlist_store),
 ) -> dict[str, Any]:
     try:
         command = parse_command(payload.input)
@@ -396,7 +447,7 @@ def run_command(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
-        return _dispatch(command, registry, portfolio_engine, payload.resolution)
+        return _dispatch(command, registry, portfolio_engine, watchlist_store, payload.resolution)
     except UnsupportedCommandError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - ver justificación en plan-5-rest-endpoints.md

@@ -61,6 +61,7 @@ bucle) → scoring del producto → siguiente feature.
 | 17 | Mapa de cadena de valor (comando `MAP`, mindmap SVG: materias primas de entrada / salidas) | merged | feature-17-value-chain-map | ver `docs/sys/scoring.md` |
 | 18 | Navegación cruzada entre símbolos + correcciones de UI engañosa (PORT ADD, MOVERS) | merged | feature-18-symbol-navigation | ver `docs/sys/scoring.md` |
 | 19 | Añadir posiciones a la cartera (comando `PORT ADD`, motor de feat-6 expuesto por fin) | merged | feature-19-port-add | ver `docs/sys/scoring.md` |
+| 20 | Watchlist personalizable (comandos `WATCH ADD`/`WATCH REMOVE`, tabla de feat-1 expuesta por fin) | merged | feature-20-watchlist-manage | ver `docs/sys/scoring.md` |
 
 ## Fuera de alcance (ni del MVP ni del bucle post-MVP, salvo que se decida lo contrario)
 

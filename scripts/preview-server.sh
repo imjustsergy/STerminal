@@ -41,7 +41,12 @@ case "$action" in
       backend/.venv/bin/pip install -q -e "backend[dev]"
       port="$(free_port)"
       mkdir -p .preview-logs
+      # --reload: tras un merge --no-ff a main (o cualquier cambio en backend/app/)
+      # el proceso se reinicia solo, sin tener que parar/relanzar el preview a mano
+      # cada vez. Acotado a backend/app/ para no vigilar el resto del worktree
+      # (frontend/, docs/, .venv/) y evitar reinicios/ruido innecesarios.
       setsid nohup backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port "$port" --app-dir backend \
+        --reload --reload-dir backend/app \
         > .preview-logs/backend.log 2>&1 < /dev/null &
       pgid=$!
       disown

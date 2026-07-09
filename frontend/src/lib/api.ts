@@ -104,3 +104,22 @@ export async function searchSymbols(query: string): Promise<SymbolMatch[]> {
     return [];
   }
 }
+
+/**
+ * `GET {API_BASE_URL}/watchlist` (feat-20) — símbolos de la watchlist persistida.
+ * Mismo espíritu resiliente que `searchSymbols`: un fallo aquí no debe romper el
+ * panel, `[]` es un estado válido (watchlist vacía), no distinguible de un error de
+ * red desde la UI — ambos casos degradan a "sin símbolos".
+ */
+export async function getWatchlistSymbols(): Promise<string[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/watchlist`);
+    if (!response.ok) {
+      return [];
+    }
+    const payload = (await response.json()) as { symbols: string[] };
+    return payload.symbols;
+  } catch {
+    return [];
+  }
+}
