@@ -717,6 +717,58 @@ vivo.
   inspección visual detecta y los tests estructurales no.
 - **Dependencias:** ninguna nueva — SVG a mano, sin librería de gráficos.
 
+### feat-18 — Navegación cruzada entre símbolos + correcciones de UI engañosa
+
+Octava iteración del bucle post-MVP, primera de una nueva fase con objetivo distinto:
+auditar la app en busca de UX incorrecta o funcionalidad a medias en vez de construir
+una feature de negocio nueva. Sin PR — merge directo a `main` para este bucle
+(instrucción explícita del owner).
+
+Hallazgos de la auditoría (agente de investigación dedicado, ver
+`docs/sys/features/feat-18-symbol-navigation.md` para el detalle completo):
+
+- **Sin navegación cruzada entre símbolos** — el gap de UX más repetido en
+  `docs/sys/scoring.md` a lo largo de varias iteraciones. Cualquier símbolo mostrado
+  dentro de un panel que no fuera el propio símbolo consultado (referencias de
+  `CORR`, nodos de `MAP`, filas de `WATCH`/`PORT`) era texto muerto.
+- **`PORT ADD` era un dead-end** — invitaba a escribir un comando con estilo visual
+  de comando real que el parser no reconocía.
+- **`MOVERS` en `HELP`** se mostraba con el mismo badge azul que los comandos que sí
+  funcionan, pese a estar fuera de alcance del MVP y devolver siempre `400`.
+
+Solución:
+
+- **`App.svelte`**: `navigateToSymbol(symbol)` reutiliza el mismo `runCommand`/
+  `handleSubmit` que teclear el símbolo a mano — sin lógica de despacho nueva.
+  `PanelRouter.svelte` reenvía el callback como `onNavigate` a los paneles con
+  símbolos de otros activos.
+- **`CorrelationsPanel.svelte`**: cada fila de la cesta de referencia es clicable.
+- **`ValueChainPanel.svelte`**: cada nodo de entrada/salida (leyenda y `<g>` del SVG)
+  es clicable, con soporte de teclado (`role="button"`, `tabindex`, Enter/Espacio); el
+  nodo central no lo es (ya se está viendo ese símbolo).
+- **`WatchlistPanel.svelte`/`PortfolioPanel.svelte`**: el símbolo de cada fila es
+  clicable.
+- **`PortfolioPanel.svelte`**: el footer deja de usar estilo de comando real para
+  `PORT ADD` — el mensaje aclara que la edición de posiciones está pendiente, sin
+  implicar que el comando vaya a funcionar.
+- **`HelpPanel.svelte`**: `MOVERS` se distingue visualmente (atenuado + badge "no
+  disponible todavía") en vez de mostrarse igual que un comando funcional — resuelto
+  enteramente en frontend (lista fija de tipos no disponibles), sin cambiar el
+  contrato de `HelpEntry`.
+- 88 tests frontend en verde (10 nuevos), `svelte-check` sin errores, build limpio.
+  **Limitación de verificación:** la extensión Claude-in-Chrome se desconoció durante
+  la verificación en vivo de esta feature — el click-through real en un navegador no
+  se pudo confirmar visualmente esta sesión (a diferencia de feat-17, donde sí se
+  logró). La cobertura automatizada (aserciones explícitas de que cada clic invoca
+  `onNavigate` con el símbolo correcto, en los cuatro paneles afectados) y el tipado
+  estricto end-to-end (`svelte-check`) son la evidencia disponible; pendiente de
+  confirmación visual.
+- **No incluye:** implementar `PORT ADD` de verdad (edición de posiciones — requiere
+  sintaxis de comando de más de 2 tokens, candidato para una futura iteración),
+  implementar `MOVERS` de verdad, resolución intradía real para `GP` (gaps ya
+  documentados en `scoring.md`, fuera de esta iteración concreta).
+- **Dependencias:** ninguna nueva.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
