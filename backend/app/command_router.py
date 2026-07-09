@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -71,6 +72,7 @@ _COMMAND_DESCRIPTIONS: dict[CommandType, str] = {
     CommandType.REPORTS: "Enlaces externos a fuentes de reports: Yahoo Finance, SEC EDGAR, sitio del proyecto (feat-16).",
     CommandType.MAP: "Mapa de cadena de valor (mindmap): materias primas de entrada y sectores de salida, taxonomía curada (feat-17).",
     CommandType.PORTFOLIO: "Cartera: posiciones agregadas, P&L y asignación.",
+    CommandType.PORTFOLIO_ADD: "Añade un lote de compra a la cartera (feat-19): PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>.",
     CommandType.WATCHLIST: "Watchlist en vivo (ver WebSocket /stream, feature 7).",
     CommandType.MOVERS: "Mayores subidas/bajadas del día (fuera de alcance del MVP).",
     CommandType.HELP: "Esta lista de comandos soportados.",
@@ -114,6 +116,15 @@ def _help_entries() -> list[dict[str, str]]:
                 "description": _COMMAND_DESCRIPTIONS[command_type],
             }
         )
+    # PORT ADD (feat-19) no está en ninguna de las dos tablas genéricas — es la única
+    # excepción a la sintaxis de máximo 2 tokens, se añade a mano.
+    entries.append(
+        {
+            "usage": "PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>",
+            "type": CommandType.PORTFOLIO_ADD.value,
+            "description": _COMMAND_DESCRIPTIONS[CommandType.PORTFOLIO_ADD],
+        }
+    )
     return entries
 
 
@@ -176,6 +187,29 @@ def _dispatch_portfolio(portfolio_engine: PortfolioEngine) -> dict[str, Any]:
         "holdings": [_holding_dict(holding) for holding in holdings],
         "summary": _summary_dict(summary),
     }
+
+
+def _dispatch_portfolio_add(
+    command: Command, registry: Registry, portfolio_engine: PortfolioEngine
+) -> dict[str, Any]:
+    """feat-19. `PortfolioEngine.add_position` ya existía desde feat-6 — esta capa
+    solo traduce el `Command` parseado a la llamada real. Resuelve la clase de
+    activo con la misma heurística que cualquier otro comando (sin exigir
+    especificarla a mano en la sintaxis). Devuelve la misma respuesta que `PORT`: el
+    owner ve la cartera actualizada de inmediato, sin panel nuevo."""
+    assert command.symbol is not None
+    assert command.quantity is not None
+    assert command.cost_price is not None
+    asset_class, _internal_symbol = registry.resolve(command.symbol)
+    opened_at = datetime.now(tz=timezone.utc).date().isoformat()
+    portfolio_engine.add_position(
+        symbol=command.symbol,
+        asset_class=asset_class,
+        quantity=command.quantity,
+        cost_price=command.cost_price,
+        opened_at=opened_at,
+    )
+    return _dispatch_portfolio(portfolio_engine)
 
 
 def _dispatch_help() -> dict[str, Any]:
@@ -295,6 +329,8 @@ def _dispatch(
         return _dispatch_graph_price(command, registry, resolution)
     if command.type == CommandType.PORTFOLIO:
         return _dispatch_portfolio(portfolio_engine)
+    if command.type == CommandType.PORTFOLIO_ADD:
+        return _dispatch_portfolio_add(command, registry, portfolio_engine)
     if command.type == CommandType.HELP:
         return _dispatch_help()
     if command.type == CommandType.NEWS:
