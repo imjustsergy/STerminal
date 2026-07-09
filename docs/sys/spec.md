@@ -671,11 +671,17 @@ ETFs reales y líquidos como proxy de cada nodo — la relación en sí es edito
 (documentada como tal), la cotización de cada nodo es un dato de mercado real y en
 vivo.
 
-- **`app/value_chain.py`** (nuevo, puro): `SECTOR_INPUTS`/`SECTOR_OUTPUTS` — solo 6
-  sectores con relación económica clara (`Energy`, `Basic Materials`, `Technology`,
-  `Consumer Defensive`, `Industrials`, `Utilities`); el resto de sectores GICS de
-  yfinance se deja sin mapear a propósito, devolviendo listas vacías documentadas en
-  vez de forzar una relación débil.
+- **`app/value_chain.py`** (nuevo, puro): `SECTOR_INPUTS`/`SECTOR_OUTPUTS` — 8 de los
+  11 sectores GICS de yfinance con relación económica clara (`Energy`, `Basic
+  Materials`, `Technology`, `Consumer Defensive`, `Industrials`, `Utilities`, y —
+  ampliado en la tercera iteración de esta feature — `Real Estate` y `Communication
+  Services`, ambos solo con `inputs` porque ninguno tiene una salida-a-empresas
+  defendible sin forzarla). `Financial Services`/`Healthcare`/`Consumer Cyclical` se
+  dejan sin mapear a propósito — demasiado heterogéneos o de servicios puros para una
+  relación honesta de una sola línea, devuelven listas vacías documentadas en vez de
+  forzarla. Cada proxy tiene además una descripción en prosa
+  (`PROXY_DESCRIPTIONS`/`describe_proxy`) mostrada en la leyenda del panel — añadido
+  tras feedback en vivo del owner (los tickers solos no dicen nada sin contexto).
 - **`ValueChain`** (`backend/app/models.py`): `sector`, `center: Quote`, `inputs:
   list[Quote]`, `outputs: list[Quote]` — cada nodo es una `Quote` real.
 - **`Registry.get_value_chain(symbol, asset_class=None)`**: cotización real del centro

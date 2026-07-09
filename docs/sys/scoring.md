@@ -262,13 +262,32 @@ la primera iteración era de resolución de red, no del código ni de la extensi
   se queda sin descripción). Verificación visual confirmada en los tres estados
   principales del panel (con datos, vacío por sector sin mapear, vacío por sector
   `null`), no solo el camino feliz.
-- **Funcionalidad (8/10, sin cambios) y Calidad de datos (8/10, sin cambios):** mismo
-  análisis que la primera iteración — siguen siendo los dos frentes con más recorrido.
+- **Calidad de datos (8/10, sin cambios):** techo estructural — la relación
+  input/output seguirá siendo editorial mientras no exista una fuente de datos de
+  cadena de suministro real y gratuita; ya está declarado con la máxima transparencia
+  posible dado ese límite (mismo patrón que `_REFERENCE_UNIVERSE` en feat-15).
 
-**Qué falta para llegar a 9/10:** ampliar la taxonomía curada más allá de los 6
-sectores actuales (o documentar más explícitamente por qué el resto se queda fuera) es
-lo único que movería la funcionalidad; en calidad de datos, el techo real es que la
-relación input/output seguirá siendo editorial mientras no exista una fuente de datos
-de cadena de suministro real y gratuita — ya está declarado con la máxima transparencia
-posible dado ese límite. Sigue sin mergearse a `main` — PR #1 abierto, pendiente de
-review del owner.
+### Tras feat-17, tercera iteración (amplía cobertura de sectores) — 2026-07-09
+
+**Score: 8.5/10** (funcionalidad sube, la media se mantiene por el techo estructural
+de calidad de datos)
+
+- **Funcionalidad (9/10, sube de 8):** se añaden `Real Estate` (input `XLB` —
+  materiales de construcción, relación tan clara como las 6 anteriores) y
+  `Communication Services` (input `XLK` — infraestructura de red/telecom), ambos solo
+  con `inputs` porque ninguno tiene una salida-a-empresas defendible sin forzarla —
+  aplicando el mismo criterio de honestidad que ya limitaba la tabla, no relajándolo.
+  Cobertura sube de 6 a 8 de los 11 sectores GICS de yfinance. Verificado en vivo con
+  `SPG MAP` (Real Estate real) y `T MAP` (Communication Services real). Quedan sin
+  mapear a propósito `Financial Services`, `Healthcare`, `Consumer Cyclical` — de
+  verdad demasiado heterogéneos/de servicios para una relación honesta de una sola
+  línea.
+
+**Qué falta para llegar a 9/10 de media:** con funcionalidad y UX ya en 9/10, el techo
+real es la calidad de datos (8/10, estructural — ver arriba) y la robustez (8.5/10).
+Subir la media exigiría o bien aceptar que 8/10 en calidad de datos es el máximo
+honesto para una taxonomía editorial (y por tanto que esta feature converge en ~8.5-9
+sin llegar nunca a un 9/10 limpio en las cuatro categorías), o encontrar una fuente de
+datos de cadena de suministro real que sustituya la taxonomía curada — fuera de
+alcance con los providers gratuitos actuales. Sigue sin mergearse a `main` — PR #1
+abierto, pendiente de review del owner.
