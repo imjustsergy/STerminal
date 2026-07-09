@@ -12,6 +12,7 @@ describe('panelForType', () => {
     expect(panelForType('FA')).toBe('financials');
     expect(panelForType('CORR')).toBe('correlations');
     expect(panelForType('REPORTS')).toBe('reports');
+    expect(panelForType('MAP')).toBe('value_chain');
   });
 
   it('cae a "unknown" ante un type no reconocido, sin reventar', () => {
