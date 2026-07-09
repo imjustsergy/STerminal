@@ -341,3 +341,43 @@ candidato natural de "funcionalidad a medias" es `PORT ADD` de verdad (edición 
 posiciones vía comando) o resolución intradía real para `GP` — ambos ya documentados
 como gaps en iteraciones anteriores de este fichero. Mergeado directo a `main` sin PR,
 según instrucción explícita del owner para este bucle.
+
+### Tras feat-19 (comando PORT ADD — añadir posiciones a la cartera) — 2026-07-09
+
+**Score: 9/10**
+
+- **Funcionalidad (9/10):** cierra el candidato "a medias" más claro que quedaba
+  identificado — el motor (`PortfolioEngine.add_position`) ya existía completo desde
+  feat-6, solo faltaba la capa de comando/router. Primera y única excepción
+  documentada a la sintaxis de máximo 2 tokens del lenguaje de comandos
+  (`PORT ADD <SÍMBOLO> <CANTIDAD> <PRECIO>`), resuelta como caso especial sin tocar
+  el despacho genérico del resto de comandos. Resolución automática de clase de
+  activo (equity/crypto/fx) sin necesidad de especificarla en la sintaxis — mismo
+  patrón de heurística que cualquier otro comando.
+- **UX (9/10):** la respuesta de `PORT ADD` es literalmente la misma que `PORT` —
+  el owner ve la cartera actualizada de inmediato, sin panel nuevo que aprender ni
+  cambio de flujo. El footer de `PortfolioPanel` vuelve a invitar a usarlo, esta vez
+  siendo cierto. Mensajes de error siempre muestran la sintaxis exacta esperada, no
+  un error de parseo genérico y confuso.
+- **Calidad de datos (9/10):** sin cambios respecto a feat-18 — sigue siendo una
+  feature de interacción/comando sobre datos ya reales (precio en vivo del holding
+  vía `Registry`, ahora con una posición real persistida por el propio owner).
+- **Robustez (9/10, sube de 8):** 295 tests backend (13 nuevos entre parser y
+  router: sintaxis válida, cada tipo de error con su mensaje, símbolo inválido
+  reutilizando `InvalidSymbolError` en vez de inventar uno nuevo, error del motor
+  propagado como 400) + 88 tests frontend, `svelte-check` sin errores. **Esta vez la
+  verificación en vivo fue más allá de lo pedido**: se probó contra SQLite real (no
+  mockeado) — `PORT ADD AAPL 10 150.50` persiste de verdad y aparece en una petición
+  `PORT` posterior separada, confirmando que no es solo una respuesta en memoria.
+  Los 5 criterios de aceptación de `feat-19-port-add.md` verificados sin reservas.
+  Único hueco (igual que feat-18): la extensión Claude-in-Chrome seguía
+  desconectada, así que el click-through visual en navegador real no se pudo
+  confirmar — mitigado por la profundidad de la verificación vía API real.
+
+**Qué falta para llegar a 9/10 limpio en las cuatro categorías:** ya está — todas las
+categorías en 9/10. El techo real para un 10/10 sería confirmar visualmente en
+navegador (bloqueado por la herramienta, no por el código) y decidir si vale la pena
+seguir ampliando el lenguaje de comandos (`PORT EDIT`/`PORT DELETE`, ya con motor
+existente en `portfolio.py` desde feat-6, mismo patrón que esta feature) o si el
+bucle de auditoría se da por satisfecho aquí. Mergeado directo a `main` sin PR, según
+instrucción explícita del owner para este bucle.
