@@ -4,9 +4,17 @@
 
   interface Props {
     response: ValueChainResponse;
+    onNavigate: (symbol: string) => void;
   }
 
-  const { response }: Props = $props();
+  const { response, onNavigate }: Props = $props();
+
+  function onNodeKeydown(event: KeyboardEvent, symbol: string): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onNavigate(symbol);
+    }
+  }
 
   const VIEW_W = 620;
   const VIEW_H = 460;
@@ -114,7 +122,14 @@
       </g>
 
       {#each inputNodes as pos (pos.node.quote.symbol)}
-        <g class="node">
+        <g
+          class="node clickable"
+          role="button"
+          tabindex="0"
+          aria-label="Ver {pos.node.quote.symbol}"
+          onclick={() => onNavigate(pos.node.quote.symbol)}
+          onkeydown={(e) => onNodeKeydown(e, pos.node.quote.symbol)}
+        >
           <circle cx={pos.x} cy={pos.y} r={NODE_R} />
           <text x={pos.x} y={pos.y - 6} class="node-symbol" text-anchor="middle">{pos.node.quote.symbol}</text>
           <text
@@ -129,7 +144,14 @@
       {/each}
 
       {#each outputNodes as pos (pos.node.quote.symbol)}
-        <g class="node">
+        <g
+          class="node clickable"
+          role="button"
+          tabindex="0"
+          aria-label="Ver {pos.node.quote.symbol}"
+          onclick={() => onNavigate(pos.node.quote.symbol)}
+          onkeydown={(e) => onNodeKeydown(e, pos.node.quote.symbol)}
+        >
           <circle cx={pos.x} cy={pos.y} r={NODE_R} />
           <text x={pos.x} y={pos.y - 6} class="node-symbol" text-anchor="middle">{pos.node.quote.symbol}</text>
           <text
@@ -149,7 +171,7 @@
         <div class="legend-group">
           <div class="legend-title dim">MATERIAS PRIMAS DE ENTRADA</div>
           {#each response.inputs as node (node.quote.symbol)}
-            <div class="legend-item">
+            <button type="button" class="legend-item" onclick={() => onNavigate(node.quote.symbol)}>
               <div class="legend-item-head">
                 <span class="legend-symbol acc">{node.quote.symbol}</span>
                 <span class="legend-price tabular sign-{signColor(node.quote.change_percent)}">
@@ -157,7 +179,7 @@
                 </span>
               </div>
               <div class="legend-desc dim">{node.description}</div>
-            </div>
+            </button>
           {/each}
         </div>
       {/if}
@@ -166,7 +188,7 @@
         <div class="legend-group">
           <div class="legend-title dim">SALIDAS A OTRAS EMPRESAS</div>
           {#each response.outputs as node (node.quote.symbol)}
-            <div class="legend-item">
+            <button type="button" class="legend-item" onclick={() => onNavigate(node.quote.symbol)}>
               <div class="legend-item-head">
                 <span class="legend-symbol acc">{node.quote.symbol}</span>
                 <span class="legend-price tabular sign-{signColor(node.quote.change_percent)}">
@@ -174,7 +196,7 @@
                 </span>
               </div>
               <div class="legend-desc dim">{node.description}</div>
-            </div>
+            </button>
           {/each}
         </div>
       {/if}
@@ -249,8 +271,18 @@
     padding: 8px 12px;
   }
   .legend-item {
+    display: block;
+    width: 100%;
     background: var(--panel);
+    border: none;
     padding: 10px 12px;
+    color: var(--fg);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .legend-item:hover {
+    background: var(--panel2);
   }
   .legend-item-head {
     display: flex;
@@ -280,6 +312,19 @@
     fill: var(--panel2);
     stroke: var(--border);
     stroke-width: 1.5;
+  }
+  .node.clickable {
+    cursor: pointer;
+  }
+  .node.clickable:hover circle {
+    stroke: var(--acc);
+  }
+  .node.clickable:focus-visible circle {
+    stroke: var(--acc);
+    stroke-width: 2.5;
+  }
+  .node.clickable:focus-visible {
+    outline: none;
   }
   .center-node circle {
     fill: var(--accdim);

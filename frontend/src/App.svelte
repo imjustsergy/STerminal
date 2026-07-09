@@ -56,6 +56,15 @@
       await runCommand(lastRawInput, range);
     }
   }
+
+  /**
+   * feat-18: navegación cruzada entre símbolos — clicar un símbolo referenciado
+   * dentro de un panel (ej. una fila de CORR, un nodo de MAP) lleva a su SUMMARY,
+   * reutilizando el mismo camino que escribirlo a mano en la barra de comando.
+   */
+  async function navigateToSymbol(symbol: string): Promise<void> {
+    await handleSubmit(symbol);
+  }
 </script>
 
 <div class="app-shell">
@@ -66,7 +75,15 @@
     </div>
   </header>
   <main>
-    <PanelRouter {kind} {response} {errorMessage} {errorSuggestions} {activeRange} onRangeChange={handleRangeChange} />
+    <PanelRouter
+      {kind}
+      {response}
+      {errorMessage}
+      {errorSuggestions}
+      {activeRange}
+      onRangeChange={handleRangeChange}
+      onNavigate={navigateToSymbol}
+    />
   </main>
   <CommandBar onSubmit={handleSubmit} />
 </div>

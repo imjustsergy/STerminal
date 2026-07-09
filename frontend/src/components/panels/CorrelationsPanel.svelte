@@ -4,9 +4,10 @@
 
   interface Props {
     response: CorrelationsResponse;
+    onNavigate: (symbol: string) => void;
   }
 
-  const { response }: Props = $props();
+  const { response, onNavigate }: Props = $props();
 
   function formatCorrelation(n: number | null): string {
     if (n === null) {
@@ -29,18 +30,20 @@
   </div>
   <ul class="rows">
     {#each response.correlations as row (row.symbol)}
-      <li class="row">
-        <span class="ref-symbol">{row.symbol}</span>
-        <span class="ref-class dim">{row.asset_class}</span>
-        <span
-          class="value tabular"
-          class:na={row.correlation === null}
-          class:sign-pos={row.correlation !== null && signColor(row.correlation) === 'pos'}
-          class:sign-neg={row.correlation !== null && signColor(row.correlation) === 'neg'}
-          class:sign-dim={row.correlation === null || signColor(row.correlation) === 'dim'}
-        >
-          {formatCorrelation(row.correlation)}
-        </span>
+      <li>
+        <button type="button" class="row" onclick={() => onNavigate(row.symbol)}>
+          <span class="ref-symbol acc">{row.symbol}</span>
+          <span class="ref-class dim">{row.asset_class}</span>
+          <span
+            class="value tabular"
+            class:na={row.correlation === null}
+            class:sign-pos={row.correlation !== null && signColor(row.correlation) === 'pos'}
+            class:sign-neg={row.correlation !== null && signColor(row.correlation) === 'neg'}
+            class:sign-dim={row.correlation === null || signColor(row.correlation) === 'dim'}
+          >
+            {formatCorrelation(row.correlation)}
+          </span>
+        </button>
       </li>
     {/each}
   </ul>
@@ -83,10 +86,21 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    width: 100%;
     padding: 10px 14px;
+    border: none;
     border-bottom: 1px solid var(--border);
+    background: none;
+    color: var(--fg);
+    font-family: inherit;
+    font-size: inherit;
+    text-align: left;
+    cursor: pointer;
   }
-  .row:last-child {
+  .row:hover {
+    background: var(--panel2);
+  }
+  li:last-child .row {
     border-bottom: none;
   }
   .ref-symbol {

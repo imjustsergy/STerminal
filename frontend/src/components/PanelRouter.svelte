@@ -21,6 +21,8 @@
     errorSuggestions?: string[];
     activeRange: Range;
     onRangeChange: (range: Range) => void;
+    /** feat-18: navega al SUMMARY de un símbolo clicado dentro de otro panel. */
+    onNavigate: (symbol: string) => void;
   }
 
   const {
@@ -30,6 +32,7 @@
     errorSuggestions = [],
     activeRange,
     onRangeChange,
+    onNavigate,
   }: Props = $props();
 </script>
 
@@ -61,7 +64,7 @@
 {:else if kind === 'graph_price' && response?.type === 'GRAPH_PRICE'}
   <ChartPanel {response} {activeRange} {onRangeChange} />
 {:else if kind === 'portfolio' && response?.type === 'PORTFOLIO'}
-  <PortfolioPanel {response} />
+  <PortfolioPanel {response} {onNavigate} />
 {:else if kind === 'help' && response?.type === 'HELP'}
   <HelpPanel {response} />
 {:else if kind === 'news' && response?.type === 'NEWS'}
@@ -69,13 +72,13 @@
 {:else if kind === 'financials' && response?.type === 'FA'}
   <FinancialsPanel {response} />
 {:else if kind === 'correlations' && response?.type === 'CORR'}
-  <CorrelationsPanel {response} />
+  <CorrelationsPanel {response} {onNavigate} />
 {:else if kind === 'reports' && response?.type === 'REPORTS'}
   <ReportsPanel {response} />
 {:else if kind === 'value_chain' && response?.type === 'MAP'}
-  <ValueChainPanel {response} />
+  <ValueChainPanel {response} {onNavigate} />
 {:else if kind === 'watch'}
-  <WatchlistPanel />
+  <WatchlistPanel {onNavigate} />
 {:else}
   <ErrorPanel message="tipo de respuesta desconocido" />
 {/if}

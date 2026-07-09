@@ -4,9 +4,10 @@
 
   interface Props {
     response: PortfolioResponse;
+    onNavigate: (symbol: string) => void;
   }
 
-  const { response }: Props = $props();
+  const { response, onNavigate }: Props = $props();
 
   const CLASS_LABELS: Record<string, string> = {
     equity: 'ACCIÓN',
@@ -56,7 +57,7 @@
       {#each response.holdings as h (h.symbol + h.asset_class)}
         <tr>
           <td>
-            <span>{h.symbol}</span>
+            <button type="button" class="symbol-link" onclick={() => onNavigate(h.symbol)}>{h.symbol}</button>
             <span class="cls-badge dimmer">{CLASS_LABELS[h.asset_class] ?? h.asset_class.toUpperCase()}</span>
           </td>
           <td class="num tabular dim">{formatMoney(h.quantity, 4)}</td>
@@ -72,7 +73,8 @@
     </tbody>
   </table>
   <div class="footer dimmer">
-    Escribe <span class="acc">PORT ADD</span> para añadir/editar posiciones (post-MVP).
+    Edición de posiciones desde la barra de comando: todavía no disponible (pendiente
+    de una futura iteración).
   </div>
 </div>
 
@@ -146,7 +148,18 @@
     padding: 10px 18px;
     font-size: 11px;
   }
-  .acc {
+  .symbol-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--fg);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .symbol-link:hover {
     color: var(--acc);
+    text-decoration: underline;
   }
 </style>

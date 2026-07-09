@@ -5,6 +5,12 @@
   import { isQuoteError, parseStreamMessage } from '../../lib/wsMessages';
   import type { Quote, StreamQuoteEntry } from '../../lib/types';
 
+  interface Props {
+    onNavigate: (symbol: string) => void;
+  }
+
+  const { onNavigate }: Props = $props();
+
   let quotes: Record<string, StreamQuoteEntry> = $state({});
   let connected = $state(false);
   let lastUpdateMs: number | null = $state(null);
@@ -101,7 +107,9 @@
     <tbody>
       {#each rows as row (row.symbol)}
         <tr>
-          <td>{row.symbol}</td>
+          <td>
+            <button type="button" class="symbol-link" onclick={() => onNavigate(row.symbol)}>{row.symbol}</button>
+          </td>
           {#if row.entry && !isQuoteError(row.entry)}
             {@const q = row.entry as Quote}
             <td class="num tabular">{formatMoney(q.price, q.price < 1 ? 4 : 2)}</td>
@@ -185,5 +193,19 @@
   .status-error {
     color: var(--neg);
     font-size: 10px;
+  }
+  .symbol-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--fg);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .symbol-link:hover {
+    color: var(--acc);
+    text-decoration: underline;
   }
 </style>

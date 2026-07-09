@@ -291,3 +291,53 @@ sin llegar nunca a un 9/10 limpio en las cuatro categorías), o encontrar una fu
 datos de cadena de suministro real que sustituya la taxonomía curada — fuera de
 alcance con los providers gratuitos actuales. Sigue sin mergearse a `main` — PR #1
 abierto, pendiente de review del owner.
+
+**Actualización:** PR #1 mergeado por el owner el 2026-07-09, aceptando 8.5/10 como
+score final de esta feature — cierra el segundo objetivo del bucle.
+
+---
+
+## Tercer objetivo del bucle — auditoría de UX + funcionalidad a medias (2026-07-09)
+
+> Objetivo nuevo: "revisar primero todo lo que no esté correctamente y haya que
+> arreglar o mejorar la experiencia UX, y por otra parte todo aquello que esté a
+> medias o sin desarrollar, desarrollarlo". Sin PR — merge directo a `main` para este
+> bucle (instrucción explícita del owner). Mismo criterio de honestidad de siempre.
+
+### Tras feat-18 (navegación cruzada entre símbolos + correcciones de UI engañosa) — 2026-07-09
+
+**Score: 8/10**
+
+- **Funcionalidad (8/10):** cubre el gap de UX más repetido en todo este documento a
+  lo largo de varias iteraciones (navegación entre paneles relacionados) en las
+  cuatro superficies donde aplicaba (`CORR`, `MAP`, `WATCH`, `PORT`), más dos
+  correcciones de honestidad de UI (`PORT ADD` dead-end, `MOVERS` mal distinguido en
+  `HELP`). No implementa `PORT ADD` de verdad ni `MOVERS` — deliberadamente fuera de
+  alcance de esta iteración (requieren cambios de grano más grueso: sintaxis de
+  comando nueva, persistencia), documentado como candidato para la siguiente.
+- **UX (8/10):** la navegación es consistente con el patrón ya establecido en toda la
+  app — mismo camino que escribir el símbolo a mano (`runCommand`), sin lógica de
+  despacho nueva ni sorpresas. `ValueChainPanel` añade soporte de teclado
+  (`role="button"`, Enter/Espacio) a los nodos del SVG, no solo click de ratón. El
+  nodo/símbolo que ya se está viendo nunca es clicable — evita el sinsentido de "click
+  para verte a ti mismo".
+- **Calidad de datos (9/10):** sin cambios de datos — es una feature puramente de
+  interacción/UI sobre datos que ya eran reales. No aplica el techo estructural que
+  limitaba `MAP`/`CORR`.
+- **Robustez (8/10):** 88 tests frontend (10 nuevos, uno por combinación
+  panel×interacción: click en fila de `CORR`, click en leyenda y en nodo SVG de
+  `MAP` con verificación explícita de que el centro NO es clicable, click en
+  `WATCH`/`PORT`, estilo diferenciado de `MOVERS` en `HELP`, ausencia del texto
+  `PORT ADD`), `svelte-check` sin errores (0/0), build limpio. **Limitación de
+  verificación:** la extensión Claude-in-Chrome se desconectó durante la
+  verificación en vivo — a diferencia de feat-17 (donde el click-through visual sí
+  se confirmó), esta vez la evidencia se queda en tests automatizados + tipado
+  estricto, sin confirmación visual humana de que el clic se sienta bien en un
+  navegador real. Documentado explícitamente en vez de darlo por bueno.
+
+**Qué falta para llegar a 9/10:** (1) confirmar visualmente el click-through en un
+navegador real cuando la extensión vuelva a estar disponible; (2) el siguiente
+candidato natural de "funcionalidad a medias" es `PORT ADD` de verdad (edición de
+posiciones vía comando) o resolución intradía real para `GP` — ambos ya documentados
+como gaps en iteraciones anteriores de este fichero. Mergeado directo a `main` sin PR,
+según instrucción explícita del owner para este bucle.
