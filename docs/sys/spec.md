@@ -697,13 +697,18 @@ vivo.
   `JETS`+`XLI`), `JPM MAP` (Financial Services, sin mapeo → vacío), `BTC MAP`/`EURUSD
   MAP` (sector `null` → vacío), y un símbolo inexistente (`400`) — los 6 escenarios de
   los criterios de aceptación de `feat-17-value-chain-map.md` correctos.
-- **Limitación de verificación conocida:** el criterio de aceptación "verificable
-  visualmente" del mindmap no se pudo comprobar con una captura de navegador real (fallo
-  persistente de la extensión Claude-in-Chrome en esta sesión, no del código) — la
-  verificación de la topología del SVG (nodo central, número de nodos, líneas de
-  conexión, contenido de cada nodo) se hizo por vía de tests automatizados sobre el DOM
-  renderizado, no por inspección visual humana. Pendiente de confirmación visual por el
-  owner.
+- **Verificación visual completada en segunda iteración:** el primer intento de
+  captura de navegador falló por resolución de red (Claude-in-Chrome no llegaba a
+  `127.0.0.1`/`192.168.x.x` desde este entorno); el owner dio la IP de Tailscale de la
+  máquina y la verificación visual se completó sobre `AAPL MAP`, `JPM MAP` (sector sin
+  mapeo) y `BTC MAP` (sector `null`) — mindmap limpio, sin solapamientos, escalado
+  correcto en los tres casos.
+- **`ValueChainNode(quote, description)` + leyenda** (añadido tras el feedback en vivo
+  del owner al ver el mindmap): los tickers de los nodos no significaban nada sin
+  contexto — `value_chain.py::PROXY_DESCRIPTIONS` da una descripción en prosa de cada
+  proxy, mostrada en una leyenda a la derecha del mindmap (símbolo + precio +
+  descripción, agrupada en entradas/salidas). Exactamente el tipo de gap que la
+  inspección visual detecta y los tests estructurales no.
 - **Dependencias:** ninguna nueva — SVG a mano, sin librería de gráficos.
 
 ---

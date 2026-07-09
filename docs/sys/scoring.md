@@ -236,3 +236,39 @@ no) sube la puntuación de funcionalidad. No se mergea a `main` — PR abierto
 (`feature-17-value-chain-map`) pendiente de review del owner, siguiendo el flujo
 estándar de `workflow.md` (este bucle, a diferencia del anterior, no delegó merge
 directo).
+
+### Tras feat-17, segunda iteración (verificación visual + feedback del owner) — 2026-07-09
+
+**Score: 8.5/10**
+
+El owner dio acceso a la IP de Tailscale de la máquina (el fallo de Claude-in-Chrome de
+la primera iteración era de resolución de red, no del código ni de la extensión en sí)
+— la verificación visual pendiente **sí se pudo completar** en esta iteración.
+
+- **UX (9/10, sube de 6):** confirmado visualmente en el navegador real: el mindmap
+  renderiza limpio, sin solapamientos, con buen contraste y escalado correcto del
+  `viewBox` en los tres casos probados (`AAPL MAP` con 2 inputs + 1 output, `JPM MAP`
+  con listas vacías, `BTC MAP` con sector `null`). El owner, al verlo, señaló un gap
+  real que ningún test automatizado podía detectar: **los tickers de los nodos
+  (`SOXX`, `CPER`...) no significan nada sin contexto** para alguien que no los
+  conozca de memoria. Se corrigió en la misma iteración: `PROXY_DESCRIPTIONS` en
+  `value_chain.py` + un nuevo `ValueChainNode(quote, description)` + una leyenda en
+  el lado derecho del panel (símbolo, precio, descripción en prosa de cada nodo,
+  agrupada en "materias primas de entrada" / "salidas a otras empresas") —
+  exactamente el tipo de hallazgo que justifica no saltarse la verificación visual
+  aunque los tests estructurales ya estuvieran en verde.
+- **Robustez (8.5/10, sube de 8):** 271 tests backend + 78 tests frontend tras el
+  cambio (incluyendo un test de completitud que falla si algún proxy de la taxonomía
+  se queda sin descripción). Verificación visual confirmada en los tres estados
+  principales del panel (con datos, vacío por sector sin mapear, vacío por sector
+  `null`), no solo el camino feliz.
+- **Funcionalidad (8/10, sin cambios) y Calidad de datos (8/10, sin cambios):** mismo
+  análisis que la primera iteración — siguen siendo los dos frentes con más recorrido.
+
+**Qué falta para llegar a 9/10:** ampliar la taxonomía curada más allá de los 6
+sectores actuales (o documentar más explícitamente por qué el resto se queda fuera) es
+lo único que movería la funcionalidad; en calidad de datos, el techo real es que la
+relación input/output seguirá siendo editorial mientras no exista una fuente de datos
+de cadena de suministro real y gratuita — ya está declarado con la máxima transparencia
+posible dado ese límite. Sigue sin mergearse a `main` — PR #1 abierto, pendiente de
+review del owner.
