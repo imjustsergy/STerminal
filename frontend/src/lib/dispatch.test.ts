@@ -15,6 +15,7 @@ describe('panelForType', () => {
     expect(panelForType('MAP')).toBe('value_chain');
     expect(panelForType('WATCHLIST_ADD')).toBe('watch');
     expect(panelForType('WATCHLIST_REMOVE')).toBe('watch');
+    expect(panelForType('PROVIDERS')).toBe('providers');
   });
 
   it('cae a "unknown" ante un type no reconocido, sin reventar', () => {

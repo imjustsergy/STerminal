@@ -9,6 +9,7 @@
   import FinancialsPanel from './panels/FinancialsPanel.svelte';
   import NewsPanel from './panels/NewsPanel.svelte';
   import PortfolioPanel from './panels/PortfolioPanel.svelte';
+  import ProvidersPanel from './panels/ProvidersPanel.svelte';
   import ReportsPanel from './panels/ReportsPanel.svelte';
   import SummaryPanel from './panels/SummaryPanel.svelte';
   import ValueChainPanel from './panels/ValueChainPanel.svelte';
@@ -60,6 +61,7 @@
       <div><span class="acc">PORT ADD AAPL 10 150.50</span> <span class="dim">añadir un lote de compra</span></div>
       <div><span class="acc">WATCH</span> <span class="dim">watchlist en vivo</span></div>
       <div><span class="acc">WATCH ADD MSFT</span> <span class="dim">añadir un símbolo a la watchlist</span></div>
+      <div><span class="acc">PROVIDERS</span> <span class="dim">proveedores de datos disponibles</span></div>
       <div><span class="acc">HELP</span> <span class="dim">lista de comandos</span></div>
     </div>
   </div>
@@ -86,6 +88,10 @@
 {:else if kind === 'watch'}
   {#key watchlistVersion}
     <WatchlistPanel {onNavigate} />
+  {/key}
+{:else if kind === 'providers' && response?.type === 'PROVIDERS'}
+  {#key response}
+    <ProvidersPanel {response} />
   {/key}
 {:else}
   <ErrorPanel message="tipo de respuesta desconocido" />
