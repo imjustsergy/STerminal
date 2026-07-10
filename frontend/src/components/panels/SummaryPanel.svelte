@@ -1,5 +1,8 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { AreaSeries, createChart, type IChartApi, type ISeriesApi } from 'lightweight-charts';
+  import { postCommand } from '../../lib/api';
+  import { toLightweightLineSeries } from '../../lib/chartData';
   import { RECONNECT_DELAY_MS, wsUrl } from '../../lib/config';
   import { ageLabel, formatMoney, formatPercent, formatUsd, signColor } from '../../lib/format';
   import { isQuoteError, parseStreamMessage } from '../../lib/wsMessages';
@@ -45,6 +48,64 @@
   let clockTimer: ReturnType<typeof setInterval> | undefined;
   let destroyed = false;
 
+  // feat-26: mini-gráfico de precio embebido — la mitad inferior del panel se
+  // quedaba vacía incluso con la cotización en vivo y las acciones rápidas de
+  // feat-22. Fetch independiente del histórico (1M, fijo — el botón GP de
+  // acciones rápidas sigue siendo el camino a la vista completa con rangos).
+  // Un fallo aquí no debe romper el resto del panel (precio en vivo, acciones
+  // rápidas siguen funcionando).
+  let chartContainer: HTMLDivElement | undefined = $state();
+  let chartLoading = $state(true);
+  let chartError = $state(false);
+  let chart: IChartApi | undefined;
+  let series: ISeriesApi<'Area'> | undefined;
+
+  async function loadChart(): Promise<void> {
+    try {
+      const result = await postCommand(`${response.symbol} GP`, { resolution: '1M' });
+      if (destroyed) {
+        return;
+      }
+      if (result.type !== 'GRAPH_PRICE' || result.candles.length === 0) {
+        chartError = true;
+        return;
+      }
+      ensureChart();
+      series?.setData(toLightweightLineSeries(result.candles));
+    } catch {
+      if (!destroyed) {
+        chartError = true;
+      }
+    } finally {
+      if (!destroyed) {
+        chartLoading = false;
+      }
+    }
+  }
+
+  function ensureChart(): void {
+    if (chart || !chartContainer) {
+      return;
+    }
+    chart = createChart(chartContainer, {
+      layout: { background: { color: 'transparent' }, textColor: '#cdd8ee' },
+      grid: {
+        vertLines: { color: '#1b2540' },
+        horzLines: { color: '#1b2540' },
+      },
+      timeScale: { borderColor: '#1b2540' },
+      rightPriceScale: { borderColor: '#1b2540' },
+      autoSize: true,
+    });
+    const lineColor = sign === 'neg' ? '#ff5566' : '#2fd48b';
+    series = chart.addSeries(AreaSeries, {
+      lineColor,
+      topColor: `${lineColor}33`,
+      bottomColor: `${lineColor}00`,
+      lineWidth: 2,
+    });
+  }
+
   function connect(): void {
     if (destroyed) {
       return;
@@ -87,6 +148,7 @@
   onMount(() => {
     lastUpdateMs = Date.now();
     connect();
+    loadChart();
     clockTimer = setInterval(() => {
       now = Date.now();
     }, 1000);
@@ -94,6 +156,9 @@
 
   onDestroy(() => {
     destroyed = true;
+    chart?.remove();
+    chart = undefined;
+    series = undefined;
     ws?.close();
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
@@ -153,6 +218,18 @@
       <span class="dim">Última actualización</span>
       <span class="tabular">{lastUpdateMs !== null ? ageLabel(lastUpdateMs, now) : '—'}</span>
     </div>
+    <div class="stat-row">
+      <span class="dim">Histórico</span>
+      <span class="tabular dim">1 mes</span>
+    </div>
+  </div>
+  <div class="chart-block">
+    {#if chartError}
+      <div class="chart-empty dim">sin histórico disponible para {response.symbol}</div>
+    {:else if chartLoading}
+      <div class="chart-empty dim">cargando gráfico…</div>
+    {/if}
+    <div class="chart-container" class:hidden={chartError} bind:this={chartContainer}></div>
   </div>
 </div>
 
@@ -160,6 +237,7 @@
   .summary-panel {
     display: flex;
     flex-direction: column;
+    height: 100%;
     border-left: 3px solid var(--border);
   }
   .summary-panel.accent-pos {
@@ -252,6 +330,27 @@
     gap: 16px;
     padding: 6px 18px;
     border-bottom: 1px dashed var(--border);
+    font-size: 12px;
+  }
+  .chart-block {
+    position: relative;
+    flex: 1;
+    min-height: 280px;
+  }
+  .chart-container {
+    position: absolute;
+    inset: 0;
+    padding: 10px 12px;
+  }
+  .chart-container.hidden {
+    display: none;
+  }
+  .chart-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 12px;
   }
 </style>

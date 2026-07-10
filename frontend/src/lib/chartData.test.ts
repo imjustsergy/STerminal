@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextRangeRequest, toLightweightSeries } from './chartData';
+import { nextRangeRequest, toLightweightLineSeries, toLightweightSeries } from './chartData';
 import type { Candle } from './types';
 
 describe('toLightweightSeries', () => {
@@ -36,6 +36,33 @@ describe('toLightweightSeries', () => {
       { timestamp: '2026-07-07T00:00:00Z', open: 2, high: 2, low: 2, close: 2, volume: 0 },
     ];
     const result = toLightweightSeries(candles);
+    expect(result[0].time).toBeLessThan(result[1].time);
+  });
+});
+
+describe('toLightweightLineSeries (feat-26)', () => {
+  it('usa el cierre de cada vela como value, no la forma OHLC completa', () => {
+    // Bug real encontrado al integrar el mini-gráfico de SummaryPanel: pasar velas
+    // OHLC a una AreaSeries revienta en runtime ("Area series item data value must be
+    // a number, got=undefined") — AreaSeries espera {time, value}, no {open,high,low,close}.
+    const candles: Candle[] = [
+      { timestamp: '2026-07-06T00:00:00Z', open: 100, high: 110, low: 95, close: 105, volume: 1000 },
+    ];
+    expect(toLightweightLineSeries(candles)).toEqual([
+      { time: Date.parse('2026-07-06T00:00:00Z') / 1000, value: 105 },
+    ]);
+  });
+
+  it('devuelve una lista vacía para una lista de velas vacía', () => {
+    expect(toLightweightLineSeries([])).toEqual([]);
+  });
+
+  it('preserva el orden de entrada', () => {
+    const candles: Candle[] = [
+      { timestamp: '2026-07-06T00:00:00Z', open: 1, high: 1, low: 1, close: 1, volume: 0 },
+      { timestamp: '2026-07-07T00:00:00Z', open: 2, high: 2, low: 2, close: 2, volume: 0 },
+    ];
+    const result = toLightweightLineSeries(candles);
     expect(result[0].time).toBeLessThan(result[1].time);
   });
 });

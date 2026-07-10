@@ -625,3 +625,40 @@ confirmación visual, ya cerrada). No se reabren ni se vuelven a mergear —
 esto es una corrección del registro, el código no cambió. Efecto práctico
 sobre el bucle: el criterio de salida ("si no llega a 9/10 volver al
 bucle") queda satisfecho para feat-22/23/24 con esta verificación tardía.
+
+### Tras feat-26 (mini-gráfico de precio embebido en SUMMARY) — 2026-07-10
+
+**Score: 9/10**
+
+- **Funcionalidad (9/10):** responde directamente al feedback del owner tras
+  ver `SUMMARY` en vivo por primera vez — cierra el hueco de "espacio vacío"
+  que quedaba incluso después de feat-22. El mini-gráfico usa datos reales
+  (mismo endpoint `GP` que el resto de la app), no un placeholder ni datos de
+  relleno.
+- **UX (9/10):** rango fijo en 1M mantiene `SUMMARY` como vista rápida sin
+  duplicar los controles de rango de `ChartPanel` — el botón `GP` sigue
+  siendo el camino natural a la vista completa. El color del área sigue el
+  signo del cambio del día, mismo lenguaje visual que el resto del panel.
+- **Calidad de datos (9/10):** histórico real vía `Registry.get_history`
+  (mismo camino que el comando `GP` de toda la vida), sin cambios de backend.
+- **Robustez (9/10):** 118 tests frontend (8 nuevos, incluyendo tests
+  unitarios dedicados de `toLightweightLineSeries` que cubren exactamente el
+  bug real encontrado) + `svelte-check` sin errores, build limpio.
+  **Esta feature es la prueba de por qué la verificación visual real importa**:
+  con la extensión Claude-in-Chrome ya reconectada, el primer intento en
+  navegador mostró "sin histórico disponible" pese a que el backend devolvía
+  velas reales (confirmado por `curl` y por una llamada `fetch` directa desde
+  la consola del propio navegador) — el bug real estaba en pasar datos con
+  forma OHLC a una `AreaSeries`, que espera `{time, value}`. Ni los tests con
+  mocks ni la verificación contra el backend real lo habrían detectado nunca,
+  porque ambos evitan deliberadamente la capa de renderizado real de
+  `lightweight-charts`. Se diagnosticó con los logs de consola del navegador
+  real (`read_console_messages`/logs de Vite), se corrigió, y se verificó de
+  nuevo visualmente para equity (`AAPL`) y fx (`EURUSD`) antes de mergear.
+
+**Qué falta para llegar a 9/10 limpio en las cuatro categorías:** ya está —
+todas las categorías en 9/10. El techo real para un 10/10 sería verificar
+también la clase crypto en navegador real (equity y fx ya confirmados) y
+decidir si vale la pena un selector de rango dentro del propio mini-gráfico
+en una iteración futura. Mergeado directo a `main` sin PR, según instrucción
+explícita del owner para este bucle.

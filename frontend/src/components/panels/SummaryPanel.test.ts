@@ -5,6 +5,28 @@ import SummaryPanel from './SummaryPanel.svelte';
 import { RECONNECT_DELAY_MS } from '../../lib/config';
 import type { SummaryResponse } from '../../lib/types';
 
+// feat-26: lightweight-charts necesita canvas/ResizeObserver reales, que jsdom no
+// implementa (mismo motivo por el que ChartPanel tampoco tiene test propio) — se
+// mockea por completo para testear solo la lógica de SummaryPanel (fetch, fallback de
+// error), no el renderizado real del gráfico.
+vi.mock('lightweight-charts', () => ({
+  AreaSeries: 'area-series-marker',
+  createChart: vi.fn(() => ({
+    addSeries: vi.fn(() => ({ setData: vi.fn() })),
+    remove: vi.fn(),
+  })),
+}));
+
+vi.mock('../../lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/api')>();
+  return {
+    ...actual,
+    postCommand: vi.fn(),
+  };
+});
+
+import { postCommand } from '../../lib/api';
+
 class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
   static OPEN = 1;
@@ -57,12 +79,22 @@ describe('SummaryPanel', () => {
   beforeEach(() => {
     FakeWebSocket.instances = [];
     vi.stubGlobal('WebSocket', FakeWebSocket);
+    // Por defecto, el fetch del mini-gráfico (feat-26) devuelve un histórico vacío —
+    // los tests centrados en la cotización en vivo no necesitan datos de gráfico
+    // reales, solo que la llamada no reviente.
+    vi.mocked(postCommand).mockResolvedValue({
+      type: 'GRAPH_PRICE',
+      symbol: 'AAPL',
+      asset_class: 'equity',
+      candles: [],
+    });
   });
 
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.mocked(postCommand).mockReset();
   });
 
   it('se suscribe al WebSocket con el símbolo consultado', async () => {
@@ -168,5 +200,72 @@ describe('SummaryPanel', () => {
     });
     expect(queryByText('2026-07-09T22:45:43.518534+00:00')).not.toBeInTheDocument();
     expect(getAllByText(/hace \d+s/).length).toBeGreaterThan(0);
+  });
+
+  // --- Mini-gráfico embebido (feat-26) --------------------------------------
+
+  it('pide el histórico de 1 mes del símbolo consultado al montar', async () => {
+    render(SummaryPanel, { response: baseResponse(), onNavigate: vi.fn() });
+    await tick();
+
+    expect(postCommand).toHaveBeenCalledWith('AAPL GP', { resolution: '1M' });
+  });
+
+  it('muestra "cargando gráfico…" mientras se resuelve el histórico', async () => {
+    let resolve!: (value: unknown) => void;
+    vi.mocked(postCommand).mockReturnValue(new Promise((res) => (resolve = res)));
+
+    const { getByText } = render(SummaryPanel, { response: baseResponse(), onNavigate: vi.fn() });
+    await tick();
+
+    expect(getByText('cargando gráfico…')).toBeInTheDocument();
+
+    resolve({ type: 'GRAPH_PRICE', symbol: 'AAPL', asset_class: 'equity', candles: [] });
+  });
+
+  it('muestra un mensaje de "sin histórico" si el fetch falla, sin romper el resto del panel', async () => {
+    vi.mocked(postCommand).mockRejectedValue(new Error('fallo simulado'));
+
+    const { getByText } = render(SummaryPanel, { response: baseResponse(), onNavigate: vi.fn() });
+    await tick();
+    await tick();
+
+    expect(getByText('sin histórico disponible para AAPL')).toBeInTheDocument();
+    // El resto del panel (precio, acciones rápidas) sigue intacto.
+    expect(getByText('316.22')).toBeInTheDocument();
+    expect(getByText('GP')).toBeInTheDocument();
+  });
+
+  it('muestra un mensaje de "sin histórico" si el histórico viene vacío', async () => {
+    vi.mocked(postCommand).mockResolvedValue({
+      type: 'GRAPH_PRICE',
+      symbol: 'AAPL',
+      asset_class: 'equity',
+      candles: [],
+    });
+
+    const { getByText } = render(SummaryPanel, { response: baseResponse(), onNavigate: vi.fn() });
+    await tick();
+    await tick();
+
+    expect(getByText('sin histórico disponible para AAPL')).toBeInTheDocument();
+  });
+
+  it('con histórico real, no muestra ningún mensaje de error/carga', async () => {
+    vi.mocked(postCommand).mockResolvedValue({
+      type: 'GRAPH_PRICE',
+      symbol: 'AAPL',
+      asset_class: 'equity',
+      candles: [
+        { timestamp: '2026-06-01T00:00:00Z', open: 1, high: 2, low: 0.5, close: 1.5, volume: 100 },
+      ],
+    });
+
+    const { queryByText } = render(SummaryPanel, { response: baseResponse(), onNavigate: vi.fn() });
+    await tick();
+    await tick();
+
+    expect(queryByText('sin histórico disponible para AAPL')).not.toBeInTheDocument();
+    expect(queryByText('cargando gráfico…')).not.toBeInTheDocument();
   });
 });
