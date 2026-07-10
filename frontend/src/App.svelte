@@ -17,6 +17,11 @@
   // este contador como key para forzar que WatchlistPanel se remonte y recargue la
   // lista persistida real.
   let watchlistVersion = $state(0);
+  // feat-23: sin esto, el panel anterior se queda estático y sin ninguna señal
+  // mientras postCommand está en curso — el owner no tiene forma de distinguir
+  // "está cargando" de "se ha quedado colgado". Activo mientras cualquier
+  // comando (o cambio de rango del gráfico) está en vuelo.
+  let loading = $state(false);
 
   function showError(err: unknown): void {
     if (err instanceof CommandApiError) {
@@ -30,6 +35,7 @@
   }
 
   async function runCommand(raw: string, resolution: Range): Promise<void> {
+    loading = true;
     try {
       const result = await postCommand(raw, { resolution });
       response = result;
@@ -39,6 +45,8 @@
       }
     } catch (err) {
       showError(err);
+    } finally {
+      loading = false;
     }
   }
 
@@ -82,6 +90,9 @@
       <span class="dimmer version">v0.9 · local</span>
     </div>
   </header>
+  <div class="progress-track" class:active={loading} aria-hidden={!loading}>
+    <div class="progress-bar"></div>
+  </div>
   <main>
     <PanelRouter
       {kind}
@@ -94,7 +105,7 @@
       onNavigate={navigateToSymbol}
     />
   </main>
-  <CommandBar onSubmit={handleSubmit} />
+  <CommandBar onSubmit={handleSubmit} hint={loading ? 'cargando…' : ''} />
 </div>
 
 <style>
@@ -124,6 +135,35 @@
   }
   .version {
     font-size: 11px;
+  }
+  .progress-track {
+    height: 2px;
+    flex: none;
+    background: transparent;
+    overflow: hidden;
+  }
+  .progress-track.active {
+    background: var(--border);
+  }
+  .progress-bar {
+    height: 100%;
+    width: 40%;
+    background: var(--acc);
+    transform: translateX(-100%);
+  }
+  .progress-track.active .progress-bar {
+    animation: progress-sweep 1.1s ease-in-out infinite;
+  }
+  @keyframes progress-sweep {
+    0% {
+      transform: translateX(-100%);
+    }
+    50% {
+      transform: translateX(150%);
+    }
+    100% {
+      transform: translateX(150%);
+    }
   }
   main {
     flex: 1;

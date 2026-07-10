@@ -525,3 +525,39 @@ vuelva a estar disponible — el código y el protocolo ya están verificados en
 profundidad, solo falta el último tramo de "verlo con los propios ojos".
 Mergeado directo a `main` sin PR, según instrucción explícita del owner para
 este bucle.
+
+### Tras feat-23 (estado de carga durante la ejecución de comandos) — 2026-07-10
+
+**Score: 8/10** (mismo techo que feat-18/feat-22: extensión Claude-in-Chrome
+desconectada, sin confirmación visual de la animación en navegador real)
+
+- **Funcionalidad (9/10):** cierra un hueco real y transversal — antes de esta
+  feature, ningún comando de la app daba ninguna señal de estar en curso; el
+  owner no tenía forma de distinguir "cargando" de "colgado". Cubre los dos
+  caminos (éxito y error, vía `finally`) y no rompe el criterio ya establecido
+  de "nunca pantalla en blanco" (spec.md sección 8) — el panel anterior sigue
+  visible durante la carga.
+- **UX (9/10):** patrón familiar (barra de progreso animada) que no requiere
+  aprendizaje, y reutiliza una capacidad que ya existía sin usar (`hint` de
+  `CommandBar`) en vez de añadir un componente nuevo — cambio quirúrgico, no
+  una reestructuración.
+- **Calidad de datos (9/10):** sin cambios — feature puramente de UX, no toca
+  ningún dato.
+- **Robustez (7/10):** 103 tests frontend (3 nuevos, con un patrón de promesa
+  controlada manualmente que prueba la transición de estado exacta: aparece al
+  enviar, desaparece al resolver o fallar, el panel anterior no desaparece
+  mientras tanto) + `svelte-check` sin errores, build limpio. **Tercera vez
+  consecutiva en el bucle con la extensión Claude-in-Chrome desconectada** — a
+  diferencia de feat-22 (donde había verificación de protocolo real contra el
+  backend como alternativa sólida), aquí la naturaleza de la feature es
+  puramente visual/de animación en el frontend, así que el test automatizado,
+  aunque riguroso, no sustituye ver la barra de progreso moverse de verdad en
+  un navegador. Es la categoría que más se resiente de la falta de
+  confirmación visual en esta feature concreta.
+
+**Qué falta para llegar a 9/10 limpio en las cuatro categorías:** la extensión
+Claude-in-Chrome lleva tres features seguidas desconectada — si en la próxima
+iteración del bucle sigue caída, vale la pena que el owner la revise
+manualmente (reinstalar/reiniciar Chrome) en vez de seguir absorbiendo el
+mismo hueco de verificación feature tras feature. Mergeado directo a `main`
+sin PR, según instrucción explícita del owner para este bucle.

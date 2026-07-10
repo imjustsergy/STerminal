@@ -64,6 +64,7 @@ bucle) → scoring del producto → siguiente feature.
 | 20 | Watchlist personalizable (comandos `WATCH ADD`/`WATCH REMOVE`, tabla de feat-1 expuesta por fin) | merged | feature-20-watchlist-manage | ver `docs/sys/scoring.md` |
 | 21 | Proveedor Alpha Vantage + encender/apagar providers (comandos `PROVIDERS`/`PROVIDERS SET`) | merged | feature-21-alphavantage-provider | ver `docs/sys/scoring.md` |
 | 22 | SUMMARY en vivo + acciones rápidas + pulido visual | merged | feature-22-summary-ui-polish | ver `docs/sys/scoring.md` |
+| 23 | Estado de carga durante la ejecución de comandos (barra de progreso + hint "cargando…") | merged | feature-23-loading-feedback | ver `docs/sys/scoring.md` |
 
 ## Fuera de alcance (ni del MVP ni del bucle post-MVP, salvo que se decida lo contrario)
 

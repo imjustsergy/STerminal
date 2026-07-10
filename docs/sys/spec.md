@@ -934,6 +934,33 @@ soso, casi vacío en pantalla".
   verificación de protocolo/backend real.
 - **Dependencias:** ninguna nueva.
 
+### feat-23 — Estado de carga durante la ejecución de comandos
+
+Decimotercera iteración del bucle post-MVP, cuarta de la fase "features
+interesantes + mejora continua de UX". A diferencia de feat-22 (un panel
+concreto), esta feature ataca un hueco transversal: no había ninguna señal
+visual de que un comando se estuviera procesando — el panel anterior se
+quedaba estático hasta que la petición resolvía, sin distinguir "cargando" de
+"colgado".
+
+- **`App.svelte`**: `loading` se activa al entrar en `runCommand` y se
+  desactiva en su `finally` (cubre tanto éxito como error). El panel anterior
+  permanece visible durante la carga — sin parpadeo a blanco.
+- **Barra de progreso**: línea fina animada bajo el header, visible solo
+  mientras `loading` es verdadero — mismo patrón ya familiar de otras apps web
+  (GitHub, YouTube).
+- **`CommandBar.svelte`**: sin cambios de código — su prop `hint` ya existía
+  desde antes sin ningún consumidor; ahora `App.svelte` la usa para mostrar
+  `"cargando…"` junto a la barra de comando.
+- Verificado con un test que controla manualmente la resolución de la promesa
+  de `postCommand` (patrón `deferred`) — prueba la transición de estado exacta
+  (aparece al enviar, desaparece al resolver o fallar, el panel anterior no
+  desaparece mientras tanto) de forma más precisa que una captura de pantalla
+  puntual. **Hueco de verificación**: la extensión Claude-in-Chrome siguió
+  desconectada durante esta feature (tercera vez consecutiva en el bucle) —
+  sin confirmación visual de la animación en sí en un navegador real.
+- **Dependencias:** ninguna nueva.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
