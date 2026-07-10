@@ -65,6 +65,7 @@ bucle) → scoring del producto → siguiente feature.
 | 21 | Proveedor Alpha Vantage + encender/apagar providers (comandos `PROVIDERS`/`PROVIDERS SET`) | merged | feature-21-alphavantage-provider | ver `docs/sys/scoring.md` |
 | 22 | SUMMARY en vivo + acciones rápidas + pulido visual | merged | feature-22-summary-ui-polish | ver `docs/sys/scoring.md` |
 | 23 | Estado de carga durante la ejecución de comandos (barra de progreso + hint "cargando…") | merged | feature-23-loading-feedback | ver `docs/sys/scoring.md` |
+| 24 | Identidad de página: favicon + título de pestaña dinámico | merged | feature-24-page-identity | ver `docs/sys/scoring.md` |
 
 ## Fuera de alcance (ni del MVP ni del bucle post-MVP, salvo que se decida lo contrario)
 
