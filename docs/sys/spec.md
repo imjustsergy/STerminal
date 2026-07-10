@@ -989,6 +989,56 @@ abiertas el owner.
   título en un navegador real.
 - **Dependencias:** ninguna nueva.
 
+### feat-25 — Verificación visual retroactiva de feat-22/23/24
+
+No es una feature de código — la extensión Claude-in-Chrome volvió a conectar
+tras cuatro features seguidas desconectada, a petición directa del owner
+("revisalo ahora"). Se confirmó en el navegador real, contra el preview de
+`main` ya con feat-22/23/24 mergeadas: `SUMMARY` en vivo con sus 6 botones de
+acción rápida, la barra de progreso animándose de verdad al navegar, y el
+título de pestaña cambiando en cada navegación real (`"AAPL · sterminal"` →
+`"AAPL FA · sterminal"` → `"PROVIDERS · sterminal"`, confirmado en el propio
+`tabs_context_mcp` del navegador). Solo actualiza `docs/sys/scoring.md` — sube
+las tres features de 8/10 a 9/10, el único punto pendiente en cada una.
+
+### feat-26 — Mini-gráfico de precio embebido en SUMMARY
+
+Decimoquinta iteración del bucle post-MVP, sexta de la fase "features
+interesantes + mejora continua de UX". El owner, tras ver `SUMMARY` en vivo en
+el navegador (feat-25): "lo sigo viendo muy vacío en la vista symbol" — la
+mitad inferior del panel seguía en negro incluso con la cotización en vivo y
+las acciones rápidas de feat-22. La propia spec de feat-22 había dejado esto
+explícitamente pendiente ("para una iteración futura si el owner lo pide
+explícitamente").
+
+- **`SummaryPanel.svelte`**: al montar, pide su propio histórico de 1 mes
+  (`postCommand("<SÍMBOLO> GP", {resolution: "1M"})`, independiente del
+  comando que abrió el panel) y renderiza un gráfico de área con
+  `lightweight-charts` (misma librería que `ChartPanel`, feat-9), coloreado
+  según el signo del cambio del día. Rango fijo en 1M — el botón `GP` de
+  acciones rápidas sigue siendo el camino a la vista completa con rangos.
+- **`toLightweightLineSeries()`** (nueva, `lib/chartData.ts`): convierte velas
+  a puntos `{time, value}` (el cierre de cada vela) — **bug real encontrado y
+  corregido durante la verificación visual**: pasar velas OHLC completas
+  (`toLightweightSeries`, pensada para `CandlestickSeries`) a una `AreaSeries`
+  revienta en runtime (`"Area series item data value must be a number"`), ya
+  que una serie de área/línea espera un único `value` por punto, no
+  open/high/low/close. El backend devolvía datos reales correctamente en todo
+  momento — el fallo era puramente de la capa de conversión de datos del
+  frontend, invisible en curl y solo detectable con la app corriendo de
+  verdad en un navegador real.
+- Un fallo del fetch de histórico (símbolo sin datos, red caída) muestra un
+  mensaje discreto sin romper el resto del panel — precio en vivo y acciones
+  rápidas siguen intactos.
+- Verificado en vivo en navegador real (extensión ya reconectada) para
+  equity (`AAPL`) y fx (`EURUSD`) — el gráfico de área se renderiza con datos
+  reales en ambos casos. Este es el primer caso de esta sesión donde la
+  verificación visual real encontró un bug que ninguna otra capa de
+  verificación (tests con mocks, curl contra el backend) había detectado —
+  justifica por qué la falta de confirmación visual en feat-22/23/24 se
+  documentó como un hueco real, no solo burocrático.
+- **Dependencias:** ninguna nueva.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
