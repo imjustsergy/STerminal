@@ -561,3 +561,40 @@ iteración del bucle sigue caída, vale la pena que el owner la revise
 manualmente (reinstalar/reiniciar Chrome) en vez de seguir absorbiendo el
 mismo hueco de verificación feature tras feature. Mergeado directo a `main`
 sin PR, según instrucción explícita del owner para este bucle.
+
+### Tras feat-24 (identidad de página: favicon + título dinámico) — 2026-07-10
+
+**Score: 8/10** (cuarta feature seguida con la extensión Claude-in-Chrome
+desconectada — mismo techo, aunque con matices distintos, ver Robustez)
+
+- **Funcionalidad (9/10):** cierra un hueco real de identidad de producto —
+  antes de esta feature, la pestaña del navegador era indistinguible de una
+  pestaña vacía (icono en blanco, título fijo "sterminal" sin importar qué se
+  estuviera viendo). Para una app pensada para dejarse abierta todo el día
+  junto a otras pestañas, esto no es cosmético menor: es la diferencia entre
+  encontrarla de un vistazo o no.
+- **UX (8/10):** mejora genuina pero de alcance modesto comparada con
+  feat-22/feat-23 — no cambia ninguna interacción dentro de la app, solo la
+  identifica mejor desde fuera. Sigue siendo territorio legítimo de "pulido
+  visual" tal y como lo pidió el owner.
+- **Calidad de datos (9/10):** sin cambios — feature puramente de identidad
+  visual, no toca ningún dato.
+- **Robustez (8/10):** 110 tests frontend (7 nuevos: todas las combinaciones
+  de `titleForKind` cubiertas de forma exhaustiva, más el flujo end-to-end en
+  `App.test.ts` verificando `document.title` tras éxito/error) + `svelte-check`
+  sin errores, build limpio (favicon confirmado presente en `dist/`).
+  Verificado en vivo con `curl -I` contra el preview real: `favicon.svg` se
+  sirve con `Content-Type: image/svg+xml` correcto y el `<link rel="icon">`
+  aparece enlazado en el HTML servido. A diferencia de feat-23 (una animación
+  CSS que jsdom no puede observar), aquí `document.title` es una propiedad DOM
+  real que jsdom implementa fielmente — el mecanismo del título está más
+  sólidamente verificado que en la feature anterior. **Hueco honesto**: sigue
+  faltando ver el icono en sí en una pestaña real — eso ningún test automatizado
+  lo sustituye.
+
+**Qué falta para llegar a 9/10 limpio en las cuatro categorías:** la extensión
+Claude-in-Chrome lleva ya cuatro features seguidas desconectada — el mismo
+aviso de feat-23 sigue en pie, con más fuerza. El resto de huecos son
+menores: podría ampliarse `titleForKind` a más combinaciones si en el futuro
+aparecen paneles nuevos sin símbolo. Mergeado directo a `main` sin PR, según
+instrucción explícita del owner para este bucle.

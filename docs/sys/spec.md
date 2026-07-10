@@ -961,6 +961,34 @@ quedaba estático hasta que la petición resolvía, sin distinguir "cargando" de
   sin confirmación visual de la animación en sí en un navegador real.
 - **Dependencias:** ninguna nueva.
 
+### feat-24 — Identidad de página: favicon + título dinámico
+
+Decimocuarta iteración del bucle post-MVP, quinta de la fase "features
+interesantes + mejora continua de UX". Ataca lo primero que se ve **fuera**
+de la app: la pestaña del navegador. Antes de esta feature no había favicon
+(icono en blanco por defecto) y el `<title>` era siempre el texto fijo
+`"sterminal"`, sin importar qué símbolo o panel estuviera abierto —
+indistinguible de una pestaña vacía entre las decenas que suele tener
+abiertas el owner.
+
+- **`frontend/public/favicon.svg`** (nuevo): icono SVG propio, coherente con
+  la paleta ya definida en `app.css` (fondo `--bg`, glifo `--acc`) — sin
+  dependencias de generación de imágenes externas.
+- **`titleForKind()`** (nueva función pura en `dispatch.ts`): deriva el
+  título de pestaña a partir de `kind`/`response` — `"AAPL · sterminal"`
+  (SUMMARY), `"AAPL GP · sterminal"` (GRAPH_PRICE y el resto de comandos con
+  símbolo), `"PORT · sterminal"`/`"WATCH · sterminal"`/`"PROVIDERS ·
+  sterminal"`/`"HELP · sterminal"` (paneles sin símbolo propio), `"sterminal"`
+  en bienvenida/error/tipo desconocido. `App.svelte` la aplica a
+  `document.title` con un `$effect`.
+- Verificado en vivo: `curl -I` contra el preview real confirma que
+  `favicon.svg` se sirve con `Content-Type: image/svg+xml` y que el `<link
+  rel="icon">` está correctamente enlazado en el HTML servido. **Hueco de
+  verificación**: la extensión Claude-in-Chrome llevaba ya cuatro features
+  seguidas desconectada — sin confirmación visual del icono ni del cambio de
+  título en un navegador real.
+- **Dependencias:** ninguna nueva.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
