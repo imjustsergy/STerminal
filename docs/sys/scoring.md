@@ -598,3 +598,30 @@ aviso de feat-23 sigue en pie, con más fuerza. El resto de huecos son
 menores: podría ampliarse `titleForKind` a más combinaciones si en el futuro
 aparecen paneles nuevos sin símbolo. Mergeado directo a `main` sin PR, según
 instrucción explícita del owner para este bucle.
+
+### Verificación visual retroactiva de feat-22/feat-23/feat-24 — 2026-07-10
+
+La extensión Claude-in-Chrome (desconectada durante las tres features
+anteriores) volvió a conectar a petición del owner ("revisalo ahora"). Se
+verificó en el navegador real, contra el preview de `main` ya con las tres
+features mergeadas, sin necesidad de tocar código:
+
+- **feat-22 (SUMMARY en vivo):** `AAPL` renderiza el símbolo, precio real
+  (316.22 USD), badge "● EN VIVO", los 6 botones de acción rápida (GP/NEWS/
+  FA/CORR/REPORTS/MAP) y "Última actualización: hace 0s" — confirmado
+  visualmente por primera vez.
+- **feat-23 (barra de progreso):** al clicar el botón `FA`, la barra de
+  progreso azul animada aparece bajo el header y el hint "cargando…" aparece
+  junto a la barra de comando, exactamente como describía la spec —
+  confirmado visualmente por primera vez.
+- **feat-24 (favicon + título dinámico):** el título de la pestaña cambió en
+  vivo con cada navegación real: `"AAPL · sterminal"` → `"AAPL FA ·
+  sterminal"` → `"PROVIDERS · sterminal"` — confirmado en el propio
+  `tabs_context_mcp` del navegador, no solo en `document.title` de jsdom.
+
+**Score revisado — las tres features suben a 9/10** (Robustez pasa de 8→9 en
+cada una: el único punto pendiente en las tres era exactamente esta
+confirmación visual, ya cerrada). No se reabren ni se vuelven a mergear —
+esto es una corrección del registro, el código no cambió. Efecto práctico
+sobre el bucle: el criterio de salida ("si no llega a 9/10 volver al
+bucle") queda satisfecho para feat-22/23/24 con esta verificación tardía.
