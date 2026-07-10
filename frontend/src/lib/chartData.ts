@@ -26,6 +26,23 @@ export function toLightweightSeries(candles: Candle[]): LightweightCandle[] {
   }));
 }
 
+/** Forma que espera `lightweight-charts` para una line/area series — un único `value`
+ * por punto, a diferencia de `LightweightCandle` (OHLC). Pasar velas OHLC a una
+ * `AreaSeries` revienta en runtime ("Area series item data value must be a number") —
+ * error real encontrado al integrar el mini-gráfico de `SummaryPanel` (feat-26). */
+export interface LightweightLinePoint {
+  time: UTCTimestamp;
+  value: number;
+}
+
+/** Convierte velas del backend a puntos de línea/área — usa el cierre de cada vela. */
+export function toLightweightLineSeries(candles: Candle[]): LightweightLinePoint[] {
+  return candles.map((candle) => ({
+    time: Math.floor(Date.parse(candle.timestamp) / 1000) as UTCTimestamp,
+    value: candle.close,
+  }));
+}
+
 /** Rangos soportados de verdad por el backend (ver feat-9: no inventar 5D/3M). */
 export const SUPPORTED_RANGES = ['1D', '1W', '1M', '1Y'] as const;
 export type Range = (typeof SUPPORTED_RANGES)[number];

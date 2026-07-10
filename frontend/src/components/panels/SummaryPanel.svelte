@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { AreaSeries, createChart, type IChartApi, type ISeriesApi } from 'lightweight-charts';
   import { postCommand } from '../../lib/api';
-  import { toLightweightSeries } from '../../lib/chartData';
+  import { toLightweightLineSeries } from '../../lib/chartData';
   import { RECONNECT_DELAY_MS, wsUrl } from '../../lib/config';
   import { ageLabel, formatMoney, formatPercent, formatUsd, signColor } from '../../lib/format';
   import { isQuoteError, parseStreamMessage } from '../../lib/wsMessages';
@@ -71,7 +71,7 @@
         return;
       }
       ensureChart();
-      series?.setData(toLightweightSeries(result.candles));
+      series?.setData(toLightweightLineSeries(result.candles));
     } catch {
       if (!destroyed) {
         chartError = true;
