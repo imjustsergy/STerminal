@@ -166,3 +166,51 @@ describe('App — estado de carga durante la ejecución de comandos (feat-23)', 
     expect(getByText('AAPL')).toBeInTheDocument();
   });
 });
+
+describe('App — título de pestaña dinámico (feat-24)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.mocked(postCommand).mockReset();
+  });
+
+  it('el título es "sterminal" en la pantalla de bienvenida', () => {
+    render(App);
+    expect(document.title).toBe('sterminal');
+  });
+
+  it('tras una respuesta SUMMARY, el título incluye el símbolo', async () => {
+    vi.mocked(postCommand).mockResolvedValue({
+      type: 'SUMMARY',
+      symbol: 'AAPL',
+      asset_class: 'equity',
+      quote: {
+        symbol: 'AAPL',
+        price: 200,
+        currency: 'USD',
+        change: 1,
+        change_percent: 0.5,
+        timestamp: '2026-07-07T00:00:00Z',
+      },
+    });
+
+    const { getByLabelText } = render(App);
+    await typeAndSubmit(getByLabelText, 'AAPL');
+
+    await waitFor(() => {
+      expect(document.title).toBe('AAPL · sterminal');
+    });
+  });
+
+  it('tras un error, el título vuelve a "sterminal"', async () => {
+    vi.mocked(postCommand).mockRejectedValue(
+      new CommandApiError("símbolo 'ZZZZ' no encontrado", 400, null),
+    );
+
+    const { getByLabelText } = render(App);
+    await typeAndSubmit(getByLabelText, 'ZZZZ');
+
+    await waitFor(() => {
+      expect(document.title).toBe('sterminal');
+    });
+  });
+});

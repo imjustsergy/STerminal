@@ -3,7 +3,7 @@
   import PanelRouter from './components/PanelRouter.svelte';
   import { CommandApiError, postCommand } from './lib/api';
   import type { Range } from './lib/chartData';
-  import { panelForResponse, type PanelKind } from './lib/dispatch';
+  import { panelForResponse, titleForKind, type PanelKind } from './lib/dispatch';
   import type { CommandResponse } from './lib/types';
 
   let kind: PanelKind | 'welcome' | 'error' = $state('welcome');
@@ -81,6 +81,13 @@
   async function navigateToSymbol(symbol: string): Promise<void> {
     await handleSubmit(symbol);
   }
+
+  // feat-24: título de pestaña dinámico — sin esto es siempre "sterminal" fijo,
+  // indistinguible de una pestaña vacía entre las decenas que suele tener abiertas
+  // el owner.
+  $effect(() => {
+    document.title = titleForKind(kind, response);
+  });
 </script>
 
 <div class="app-shell">
