@@ -63,6 +63,7 @@ bucle) → scoring del producto → siguiente feature.
 | 19 | Añadir posiciones a la cartera (comando `PORT ADD`, motor de feat-6 expuesto por fin) | merged | feature-19-port-add | ver `docs/sys/scoring.md` |
 | 20 | Watchlist personalizable (comandos `WATCH ADD`/`WATCH REMOVE`, tabla de feat-1 expuesta por fin) | merged | feature-20-watchlist-manage | ver `docs/sys/scoring.md` |
 | 21 | Proveedor Alpha Vantage + encender/apagar providers (comandos `PROVIDERS`/`PROVIDERS SET`) | merged | feature-21-alphavantage-provider | ver `docs/sys/scoring.md` |
+| 22 | SUMMARY en vivo + acciones rápidas + pulido visual | merged | feature-22-summary-ui-polish | ver `docs/sys/scoring.md` |
 
 ## Fuera de alcance (ni del MVP ni del bucle post-MVP, salvo que se decida lo contrario)
 

@@ -483,3 +483,45 @@ persistir el proveedor activo entre reinicios del backend (hoy vuelve a
 añadir un segundo proveedor alternativo de verdad (crypto/fx) para que el
 mecanismo de `Registry` deje de tener un único caso de uso real. Mergeado directo
 a `main` sin PR, según instrucción explícita del owner para este bucle.
+
+### Tras feat-22 (SUMMARY en vivo + acciones rápidas + pulido visual) — 2026-07-10
+
+**Score: 8/10** (mismo techo que feat-18: extensión Claude-in-Chrome desconectada
+toda la feature, sin confirmación visual en navegador real)
+
+- **Funcionalidad (9/10):** ataca directamente la queja del owner ("muy soso,
+  casi vacío en pantalla") con tres mejoras concretas y verificables: cotización
+  en vivo (ya no hay que volver a teclear el comando para ver el precio
+  actualizado), 6 acciones rápidas a un clic para explorar el resto de comandos
+  del mismo símbolo, y timestamp legible en vez de un volcado ISO técnico. Nada
+  de esto es decorativo — cada pieza reutiliza infraestructura ya probada
+  (`/stream` de feat-7, `onNavigate` de feat-18, `ageLabel` de feat-11) en vez de
+  inventar mecanismos nuevos.
+- **UX (9/10):** el badge "● EN VIVO"/"⚠ EN CACHÉ" ya establecido en
+  `WatchlistPanel` ahora es un lenguaje visual consistente en toda la app, no
+  solo en un panel — el owner reconoce el mismo patrón donde sea que aparezca.
+  Las acciones rápidas resuelven el problema real de "¿qué más puedo hacer con
+  este símbolo?" sin tener que memorizar la sintaxis de comandos ni volver a
+  escribir el símbolo a mano.
+- **Calidad de datos (9/10):** sin cambios — sigue siendo la misma cotización
+  real en vivo de siempre, ahora simplemente refrescada automáticamente en vez
+  de estática.
+- **Robustez (8/10, baja de 9 esperado):** 100 tests frontend (7 nuevos:
+  suscripción WS con el protocolo real, filtrado de pushes de otros símbolos,
+  reconexión automática, las 6 acciones rápidas, timestamp legible) +
+  `svelte-check` sin errores, build limpio. Verificación en vivo profunda contra
+  el backend real: conexión WebSocket real reproduciendo exactamente el
+  protocolo del componente (confirmando pushes cada ~15s con el payload
+  esperado) y los 6 comandos de acciones rápidas probados contra el backend real
+  con datos reales. **Hueco honesto**: la extensión Claude-in-Chrome estuvo
+  desconectada toda la sesión de esta feature (problema intermitente ya
+  documentado en sesiones anteriores) — no hubo confirmación visual en
+  navegador real, a diferencia de feat-20/feat-21. Es el único motivo por el
+  que esta categoría baja a 8 en vez de 9.
+
+**Qué falta para llegar a 9/10 limpio en las cuatro categorías:** repetir la
+verificación visual en navegador real en cuanto la extensión Claude-in-Chrome
+vuelva a estar disponible — el código y el protocolo ya están verificados en
+profundidad, solo falta el último tramo de "verlo con los propios ojos".
+Mergeado directo a `main` sin PR, según instrucción explícita del owner para
+este bucle.

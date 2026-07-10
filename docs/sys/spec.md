@@ -899,6 +899,41 @@ de comando, para comparar cuál va mejor.
 - **Dependencias:** `python-dotenv` (nueva, mínima, justificada por evitar que
   el owner tenga que exportar la API key a mano en cada sesión).
 
+### feat-22 — SUMMARY en vivo + acciones rápidas + pulido visual
+
+Duodécima iteración del bucle post-MVP, tercera de la fase "features
+interesantes + mejora continua de UX". Petición directa del owner: el panel
+`SUMMARY` (lo primero que se ve al consultar cualquier símbolo) estaba "muy
+soso, casi vacío en pantalla".
+
+- **`SummaryPanel.svelte`**: se suscribe al WebSocket `/stream` (feat-7) para el
+  símbolo consultado — mismo patrón exacto que `WatchlistPanel` (feat-10/
+  feat-20): `connect`/`subscribe`/`scheduleReconnect`, badge "● EN VIVO"/"⚠ EN
+  CACHÉ · hace Xs". El precio/cambio se actualiza solo cada ~15s sin volver a
+  teclear el comando.
+- **Acciones rápidas**: fila de 6 botones (`GP`/`NEWS`/`FA`/`CORR`/`REPORTS`/
+  `MAP`) que navegan al comando `<SÍMBOLO> <FUNCIÓN>` correspondiente,
+  reutilizando `onNavigate` (feat-18) — ya reenviaba cualquier comando completo
+  a `handleSubmit`, no solo un símbolo desnudo, así que no hizo falta ampliar
+  su firma.
+- **Timestamp legible**: `ageLabel` (ya existente desde feat-11) sustituye el
+  volcado ISO crudo (`2026-07-09T22:45:...`) por `"hace 3s"`.
+- Pulido visual: barra de acento lateral de color según signo (verde/rojo/
+  gris), tipografía más grande para símbolo y precio.
+- `PanelRouter.svelte` envuelve `SummaryPanel` en `{#key response}` (mismo
+  patrón ya usado para `ProvidersPanel` en feat-21) — consultar un símbolo
+  nuevo remonta el panel en vez de arrastrar el estado/suscripción del
+  anterior.
+- Verificado en vivo contra el backend real: conexión WebSocket real al
+  `/stream` con el protocolo exacto que usa el componente, confirmando pushes
+  cada ~15s con el payload esperado; los 6 comandos de acciones rápidas
+  probados contra el backend real, cada uno con datos reales. **Hueco de
+  verificación**: la extensión Claude-in-Chrome estuvo desconectada durante
+  esta feature (mismo problema intermitente de sesiones anteriores) — no se
+  pudo confirmar visualmente en navegador, mitigado por la profundidad de la
+  verificación de protocolo/backend real.
+- **Dependencias:** ninguna nueva.
+
 ---
 
 ## 4. Lenguaje de comandos (el alma Bloomberg)
